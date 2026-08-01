@@ -1,0 +1,1809 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>业务分析仪表盘</title>
+<!-- PWA -->
+<meta name="theme-color" content="#1a73e8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="业务分析">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root { --primary: #1a73e8; --primary-light: #e8f0fe; --success: #34a853; --warning: #fbbc04; --danger: #ea4335; --bg: #f5f7fa; --card: #ffffff; --text: #202124; --text2: #5f6368; --border: #e0e0e0; --shadow: 0 1px 3px rgba(0,0,0,0.12); }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text); min-height:100vh; }
+.header { background: linear-gradient(135deg, #1a73e8, #0d47a1); color:#fff; padding:16px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+.header h1 { font-size:22px; font-weight:600; }
+.header-info { display:flex; gap:16px; align-items:center; font-size:14px; }
+.filters { background:#fff; padding:12px 24px; border-bottom:1px solid var(--border); display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.filters label { font-size:13px; color:var(--text2); margin-right:4px; }
+.filters select, .filters input { padding:6px 12px; border:1px solid var(--border); border-radius:6px; font-size:14px; outline:none; }
+.filters select:focus, .filters input:focus { border-color:var(--primary); }
+.dashboard { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:16px 24px; max-width:1600px; margin:0 auto; }
+.card { background:var(--card); border-radius:10px; box-shadow:var(--shadow); padding:20px; }
+.card-full { grid-column:1/-1; }
+.card h3 { font-size:15px; color:var(--text2); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.card h3::before { content:''; width:4px; height:18px; background:var(--primary); border-radius:2px; flex-shrink:0; }
+.summary-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; grid-column:1/-1; }
+.summary-item { background:var(--card); border-radius:10px; padding:16px; box-shadow:var(--shadow); text-align:center; }
+.summary-item .val { font-size:28px; font-weight:700; color:var(--primary); }
+.summary-item .lbl { font-size:12px; color:var(--text2); margin-top:4px; }
+.training-box { background:#fff8e1; border-left:4px solid var(--warning); padding:14px; border-radius:6px; font-size:14px; line-height:1.8; white-space:pre-line; }
+.empty-state { text-align:center; padding:60px 20px; color:var(--text2); grid-column:1/-1; }
+.empty-state h2 { font-size:20px; margin-bottom:8px; }
+.badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+.badge-good { background:#e6f4ea; color:#137333; }
+.badge-warn { background:#fff3cd; color:#856404; border:1px solid #ffc107; }
+.badge-bad { background:#fce8e6; color:#c5221f; }
+#employeeSelect { max-width:300px; }
+.trend-tab { padding:5px 14px; border:1px solid var(--border); border-radius:6px; background:#fff; color:var(--text2); font-size:13px; cursor:pointer; transition:all 0.2s; }
+.trend-tab:hover { border-color:var(--primary); color:var(--primary); }
+.trend-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+.biz-row { display:flex; gap:16px; margin-bottom:12px; align-items:center; }
+.biz-label { min-width:80px; font-size:13px; color:var(--text2); }
+.biz-val { font-size:22px; font-weight:700; }
+.biz-val-sm { font-size:16px; font-weight:600; }
+.biz-pct { font-size:13px; color:var(--text2); margin-left:6px; }
+.progress-bg { flex:1; height:18px; background:#f0f0f0; border-radius:9px; overflow:hidden; position:relative; }
+.progress-fill { height:100%; border-radius:9px; transition:width 0.5s; min-width:2px; }
+.biz-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px 24px; }
+#queryBtn { padding:6px 20px; background:var(--primary); color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer; font-weight:600; }
+#queryBtn:hover { background:#1557b0; }
+#exportBtn { padding:4px 14px; background:#34a853; color:#fff; border:none; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600; margin-left:4px; white-space:nowrap; }
+#exportBtn:hover { background:#2d9249; }
+.search-select { position:relative; display:inline-block; }
+.search-select input { width:100%; padding:6px 12px; border:1px solid var(--border); border-radius:6px; font-size:14px; outline:none; box-sizing:border-box; }
+.search-select input:focus { border-color:var(--primary); }
+#branchSelect { width:130px; }
+#empSelect { width:220px; }
+.search-select-dropdown { display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border); border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,0.15); max-height:260px; overflow-y:auto; z-index:1000; margin-top:2px; }
+.search-select-dropdown.open { display:block; }
+.search-select-item { padding:7px 12px; font-size:13px; cursor:pointer; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.search-select-item:hover { background:var(--primary-light); color:var(--primary); }
+.search-select-item.active { background:var(--primary); color:#fff; }
+.search-select-empty { padding:10px 12px; font-size:13px; color:var(--text2); text-align:center; }
+@media(max-width:900px) {
+  .dashboard { grid-template-columns:1fr; padding:12px; }
+  .summary-cards { grid-template-columns:repeat(2,1fr); }
+  .filters { padding:12px; }
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>业务分析仪表盘</h1>
+  <div class="header-info">
+    <span style="color:#fff;font-size:14px;" id="headerDate"></span>
+    <span>高邮电信</span>
+  </div>
+</div>
+<div class="filters">
+  <div>
+    <label>门店类型:</label>
+    <select id="storeCatFilter">
+      <option value="">全部</option>
+    </select>
+  </div>
+  <div>
+    <label>人员类型:</label>
+    <select id="staffCatFilter">
+      <option value="">全部</option>
+    </select>
+  </div>
+  <div>
+    <label>支局:</label>
+    <div class="search-select" id="branchSelect">
+      <input type="text" id="branchFilter" placeholder="全部" autocomplete="off">
+      <div class="search-select-dropdown" id="branchDropdown"></div>
+    </div>
+  </div>
+  <div>
+    <label>起始日期:</label>
+    <select id="dateStart">
+      <option value="">最早</option>
+    </select>
+  </div>
+  <div>
+    <label>截止日期:</label>
+    <select id="dateEnd">
+      <option value="">最新</option>
+    </select>
+  </div>
+  <div>
+    <label>选择人员:</label>
+    <div class="search-select" id="empSelect">
+      <input type="text" id="employeeSelect" placeholder="全部" autocomplete="off">
+      <div class="search-select-dropdown" id="empDropdown"></div>
+    </div>
+  </div>
+  <div>
+    <button id="queryBtn" onclick="doQuery()">查询</button>
+  </div>
+</div>
+<div class="dashboard" id="dashboard">
+  <div class="empty-state">
+    <h2>请选择人员</h2>
+    <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
+  </div>
+</div>
+<script>
+<script src="data.js"></script>
+
+const ALL_DATES = ["20260731", "20260730", "20260729", "20260728", "20260727", "20260726", "20260725", "20260724", "20260722", "20260630", "20260531", "20260430", "20260331", "20260228", "20260131", "20250830", "20250731", "20250630", "20250531", "20250430", "20250331", "20250228", "20250131"];
+
+let EMPLOYEES = {};
+let TRENDS = {};
+let BRANCHES = [];
+let STORE_CATEGORIES = [];
+let STAFF_CATEGORIES = [];
+let STORE_NAMES = [];
+let currentDate = '20260731';
+
+function fmtNum(v) { v = parseFloat(v); if (isNaN(v)) return '0'; return v % 1 === 0 ? String(Math.round(v)) : v.toFixed(1); }
+
+let currentStaff = null;
+let charts = {};
+
+function switchDate() {
+  var dd = ALL_DATE_DATA[currentDate];
+  EMPLOYEES = dd.employees;
+  TRENDS = dd.trends;
+  BRANCHES = dd.branches;
+  STORE_CATEGORIES = dd.store_categories;
+  STAFF_CATEGORIES = dd.staff_categories;
+  STORE_NAMES = dd.store_names;
+  // 记住当前所有筛选条件
+  var prevSc = document.getElementById('storeCatFilter').value;
+  var prevSf = document.getElementById('staffCatFilter').value;
+  var prevBr = document.getElementById('branchFilter')._selectedVal || '';
+  var prevStaff = document.getElementById('employeeSelect')._selectedVal || '';
+  if (prevStaff && !EMPLOYEES[prevStaff]) prevStaff = '';
+  rebuildFilters();
+  // 恢复门店类型
+  if (prevSc) document.getElementById('storeCatFilter').value = prevSc;
+  // 恢复人员类型
+  if (prevSf) document.getElementById('staffCatFilter').value = prevSf;
+  // 恢复支局
+  if (prevBr) {
+    document.getElementById('branchFilter')._selectedVal = prevBr;
+    document.getElementById('branchFilter')._displayLabel = prevBr;
+    document.getElementById('branchFilter').value = prevBr;
+  }
+  // 恢复人员选择
+  if (prevStaff && EMPLOYEES[prevStaff]) {
+    var frozenTag = EMPLOYEES[prevStaff].suspected_frozen ? ' [冻结]' : '';
+    document.getElementById('employeeSelect')._selectedVal = prevStaff;
+    document.getElementById('employeeSelect')._displayLabel = prevStaff + ' ' + EMPLOYEES[prevStaff].staff_nm + frozenTag;
+    document.getElementById('employeeSelect').value = prevStaff + ' ' + EMPLOYEES[prevStaff].staff_nm + frozenTag;
+    renderDashboard(EMPLOYEES[prevStaff], prevStaff);
+  } else {
+    document.getElementById('employeeSelect').value = '';
+    document.getElementById('employeeSelect')._selectedVal = '';
+    document.getElementById('dashboard').innerHTML = '<div class="empty-state"><h2>请选择人员</h2><p>从上方下拉列表选择一位人员查看详细分析</p></div>';
+  }
+}
+
+function rebuildFilters() {
+  var scSel = document.getElementById('storeCatFilter');
+  var sfSel = document.getElementById('staffCatFilter');
+  scSel.innerHTML = '<option value="">全部</option>';
+  sfSel.innerHTML = '<option value="">全部</option>';
+  STORE_CATEGORIES.forEach(function(s) { var o = document.createElement('option'); o.value=s; o.textContent=s; scSel.appendChild(o); });
+  STAFF_CATEGORIES.forEach(function(s) { var o = document.createElement('option'); o.value=s; o.textContent=s; sfSel.appendChild(o); });
+  // 清空支局和人员输入框
+  document.getElementById('branchFilter').value = '';
+  document.getElementById('branchFilter')._selectedVal = '';
+  document.getElementById('employeeSelect').value = '';
+  document.getElementById('employeeSelect')._selectedVal = '';
+  // 存储数据供搜索用
+  window._branchOptions = [''].concat(BRANCHES);
+  var empItems = [{val:'', label:'全部'}];
+  Object.keys(EMPLOYEES).forEach(function(k) {
+    var e = EMPLOYEES[k];
+    var frozenTag = e.suspected_frozen ? ' [冻结]' : '';
+    empItems.push({val: k, label: k + ' ' + e.staff_nm + frozenTag});
+  });
+  window._empOptions = empItems;
+}
+
+// ====== 自定义可搜索下拉组件 ======
+function selectEmployee(staffNo) {
+  var input = document.getElementById('employeeSelect');
+  var frozenTag = EMPLOYEES[staffNo].suspected_frozen ? ' [冻结]' : '';
+  input._selectedVal = staffNo;
+  input._displayLabel = staffNo + ' ' + EMPLOYEES[staffNo].staff_nm + frozenTag;
+  input.value = staffNo + ' ' + EMPLOYEES[staffNo].staff_nm + frozenTag;
+  doQuery();
+}
+
+function initSearchSelect(inputId, dropdownId, optionsGetter, onSelect) {
+  var input = document.getElementById(inputId);
+  var dropdown = document.getElementById(dropdownId);
+
+  function renderList(filter) {
+    var items = optionsGetter();
+    var html = '';
+    items.forEach(function(item) {
+      var val = item.val || '';
+      var label = item.label || item;
+      if (typeof item === 'string') { val = item; label = item || '全部'; }
+      if (filter && label.toLowerCase().indexOf(filter.toLowerCase()) === -1) return;
+      var isActive = input._selectedVal === val ? ' active' : '';
+      html += '<div class="search-select-item' + isActive + '" data-val="' + val + '">' + label + '</div>';
+    });
+    if (!html) html = '<div class="search-select-empty">无匹配</div>';
+    dropdown.innerHTML = html;
+  }
+
+  input.addEventListener('focus', function() {
+    input.select();
+    renderList(input.value === input._displayLabel ? '' : input.value);
+    dropdown.classList.add('open');
+  });
+
+  input.addEventListener('input', function() {
+    renderList(input.value);
+    if (!dropdown.classList.contains('open')) dropdown.classList.add('open');
+  });
+
+  dropdown.addEventListener('click', function(e) {
+    var item = e.target.closest('.search-select-item');
+    if (!item) return;
+    var val = item.getAttribute('data-val');
+    var label = item.textContent;
+    input._selectedVal = val;
+    input._displayLabel = label;
+    input.value = label;
+    dropdown.classList.remove('open');
+    if (onSelect) onSelect(val);
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.classList.remove('open');
+      // 失焦时恢复已选值显示
+      if (input._displayLabel) input.value = input._displayLabel;
+    }
+  });
+}
+
+function getBranchOptions() {
+  return (window._branchOptions || ['']).map(function(b) { return {val: b, label: b || '全部'}; });
+}
+
+function getEmpOptions() {
+  return window._empOptions || [{val:'', label:'全部'}];
+}
+
+// 公共函数：收集同组人员维度值并计算min-max归一化得分和组均值
+// 返回 { dimVals: {dim: [values]}, radarScores: {dim: score}, dimAvg: {dim: avg}, personalVals: {dim: val} }
+function computeRadarScores(emp, peerNos) {
+  var RADAR_DIMS_LIST = ['天翼发展','宽带发展','FTTR发展','融合套餐','终端合约','积分产出','高套发展','存量套改'];
+  var DIM_TO_DWM = {'天翼发展':'天翼','宽带发展':'宽带','FTTR发展':null,'融合套餐':'融合套餐','终端合约':'终端合约','积分产出':'有效积分','高套发展':'新增高套','存量套改':'存量套改'};
+  var dateKeys = getDateRange();
+  var isMultiDate = dateKeys.length > 1;
+  var aggEmps = isMultiDate ? getAggregatedEmployees(peerNos, dateKeys) : null;
+
+  var dimVals = {};
+  var dimPersonal = emp.dim_personal || {};
+  RADAR_DIMS_LIST.forEach(function(dim) {
+    dimVals[dim] = [];
+    var dwmKey = DIM_TO_DWM[dim];
+    peerNos.forEach(function(k) {
+      var e = aggEmps ? aggEmps[k] : EMPLOYEES[k];
+      if (!e) return;
+      var v = 0;
+      if (dwmKey && e.dwm && e.dwm[dwmKey]) v = e.dwm[dwmKey].month || 0;
+      else if (e.dim_personal && e.dim_personal[dim] !== undefined) v = e.dim_personal[dim];
+      dimVals[dim].push(v);
+    });
+  });
+
+  var radarScores = {};
+  var dimAvg = {};
+  var personalVals = {};
+  RADAR_DIMS_LIST.forEach(function(dim) {
+    var myVal = dimPersonal[dim] !== undefined ? dimPersonal[dim] : 0;
+    var dwmKey = DIM_TO_DWM[dim];
+    if (dwmKey && emp.dwm && emp.dwm[dwmKey]) myVal = emp.dwm[dwmKey].month || 0;
+    personalVals[dim] = myVal;
+    var vals = dimVals[dim];
+    var gMin = vals.length > 0 ? Math.min.apply(null, vals) : 0;
+    var gMax = vals.length > 0 ? Math.max.apply(null, vals) : 0;
+    if (gMax === gMin) {
+      radarScores[dim] = myVal > 0 ? 50 : 0;
+    } else {
+      radarScores[dim] = (myVal - gMin) / (gMax - gMin) * 100;
+    }
+    radarScores[dim] = Math.round(radarScores[dim] * 10) / 10;
+    var avg = vals.length > 0 ? vals.reduce(function(a,b){return a+b;},0) / vals.length : 0;
+    dimAvg[dim] = Math.round(avg * 100) / 100;
+  });
+
+  return { dimVals: dimVals, radarScores: radarScores, dimAvg: dimAvg, personalVals: personalVals };
+}
+
+// 初始化
+initSearchSelect('branchFilter', 'branchDropdown', getBranchOptions);
+initSearchSelect('employeeSelect', 'empDropdown', getEmpOptions);
+
+function doQuery() {
+  // 先根据日期范围切换数据
+  var dateKeys = getDateRange();
+  if (dateKeys.length > 0) {
+    currentDate = dateKeys[0]; // 使用起始日期作为当前日期
+    var dd = ALL_DATE_DATA[currentDate];
+    if (dd) {
+      EMPLOYEES = dd.employees;
+      TRENDS = dd.trends;
+      BRANCHES = dd.branches;
+      STORE_CATEGORIES = dd.store_categories;
+      STAFF_CATEGORIES = dd.staff_categories;
+      STORE_NAMES = dd.store_names;
+    }
+    // 如果选了特定日期，刷新筛选器（保留已选值）
+    var prevSc = document.getElementById('storeCatFilter').value;
+    var prevSf = document.getElementById('staffCatFilter').value;
+    var prevBr = document.getElementById('branchFilter')._selectedVal || '';
+    var prevEmp = document.getElementById('employeeSelect')._selectedVal || '';
+    rebuildFilters();
+    if (prevSc) document.getElementById('storeCatFilter').value = prevSc;
+    if (prevSf) document.getElementById('staffCatFilter').value = prevSf;
+    // 恢复支局
+    if (prevBr) {
+      document.getElementById('branchFilter')._selectedVal = prevBr;
+      document.getElementById('branchFilter')._displayLabel = prevBr;
+      document.getElementById('branchFilter').value = prevBr;
+    }
+    // 恢复员工选择
+    var empVal = prevEmp;
+    if (empVal && EMPLOYEES[empVal]) {
+      var frozenTag = EMPLOYEES[empVal].suspected_frozen ? ' [冻结]' : '';
+      document.getElementById('employeeSelect')._selectedVal = empVal;
+      document.getElementById('employeeSelect')._displayLabel = empVal + ' ' + EMPLOYEES[empVal].staff_nm + frozenTag;
+      document.getElementById('employeeSelect').value = empVal + ' ' + EMPLOYEES[empVal].staff_nm + frozenTag;
+    }
+  }
+
+  var staffNo = '';
+  var empVal = document.getElementById('employeeSelect')._selectedVal || '';
+  if (empVal && EMPLOYEES[empVal]) {
+    staffNo = empVal;
+    currentStaff = staffNo;
+    renderDashboard(EMPLOYEES[staffNo], staffNo);
+  } else {
+    // 群体视图：按筛选条件汇总
+    renderGroupDashboard();
+  }
+}
+
+// 根据当前筛选条件，确定某员工的"同组人员"列表（用于动态排名）
+function getPeerStaffNos(emp) {
+  var scFilter = document.getElementById('storeCatFilter').value;
+  var sfFilter = document.getElementById('staffCatFilter').value;
+  var brFilter = document.getElementById('branchFilter')._selectedVal || '';
+
+  var peers = Object.keys(EMPLOYEES);
+
+  // 门店类型：如果选了特定类型，同组就是该类型内；否则按员工自己的门店分类ym
+  if (scFilter) {
+    peers = peers.filter(function(k) { return EMPLOYEES[k].filter_group === scFilter; });
+  } else {
+    peers = peers.filter(function(k) { return EMPLOYEES[k].filter_group === emp.filter_group; });
+  }
+
+  // 人员类型：如果选了特定类型，进一步缩小同组范围
+  if (sfFilter) {
+    peers = peers.filter(function(k) { return EMPLOYEES[k].staff_category === sfFilter; });
+  } else if (emp.staff_category) {
+    // 未选人员类型时，默认按员工自己的人员类型分组（更公平）
+    // 不强制筛选，但注释：如果想默认按门店分类ym分组不区分人员类型，去掉这个else
+  }
+
+  // 支局：如果选了特定支局，进一步缩小
+  if (brFilter) {
+    peers = peers.filter(function(k) { return EMPLOYEES[k].branch === brFilter; });
+  }
+
+  return peers;
+}
+
+// 在同组内动态计算排名和均值
+function computeDynamicRanks(emp, peerNos) {
+  var RANK_COLS = [
+    {col: '月新增天翼', label: '天翼', dwmKey: '天翼'},
+    {col: '月竣工宽带', label: '宽带', dwmKey: '宽带'},
+    {col: '月竣工fttr', label: 'FTTR', dwmKey: null},
+    {col: '月竣工融合套餐_折算', label: '融合套餐', dwmKey: '融合套餐'},
+    {col: '月终端合约', label: '终端合约', dwmKey: '终端合约'},
+    {col: '月有效积分', label: '有效积分', dwmKey: '有效积分'},
+    {col: '月存量提值有效积分', label: '存量提值积分', dwmKey: null},
+    {col: '月客运有效积分', label: '客运积分', dwmKey: null},
+    {col: '月竣工新增高套', label: '新增高套', dwmKey: '新增高套'},
+    {col: '月存量套改', label: '存量套改', dwmKey: '存量套改'},
+    {col: '月plus会员', label: 'Plus会员', dwmKey: null}
+  ];
+
+  var ranks = {};
+  var groupAvg = {};
+  var dateKeys = getDateRange();
+  var isMultiDate = dateKeys.length > 1;
+  var aggEmps = isMultiDate ? getAggregatedEmployees(peerNos, dateKeys) : null;
+
+  // 取该员工同组数据
+  RANK_COLS.forEach(function(rc) {
+    // 从dwm取月度值，无dwmKey时回退到dim_personal
+    var getVal = function(e) {
+      if (!e) return 0;
+      var key = rc.dwmKey;
+      if (key && e.dwm && e.dwm[key]) return e.dwm[key].month || 0;
+      // 无dwmKey的维度（FTTR、存量提值积分、客运积分、Plus会员），从dim_personal取值
+      if (!key && e.dim_personal) {
+        // 维度名映射：RANK_COLS label -> dim_personal key
+        var labelToDim = {'FTTR':'FTTR发展','存量提值积分':'存量提值积分','客运积分':'客运积分','Plus会员':'Plus会员'};
+        var dimKey = labelToDim[rc.label];
+        if (dimKey && e.dim_personal[dimKey] !== undefined) return e.dim_personal[dimKey];
+      }
+      return 0;
+    };
+
+    // 收集同组所有人员的值
+    var vals = [];
+    var myVal = getVal(emp);
+    peerNos.forEach(function(k) {
+      var e = aggEmps ? aggEmps[k] : EMPLOYEES[k];
+      if (!e) return;
+      vals.push(getVal(e));
+    });
+
+    // 排名：比myVal大的数量+1
+    var rank = 1;
+    vals.forEach(function(v) { if (v > myVal) rank++; });
+    var total = vals.length;
+    var avg = total > 0 ? vals.reduce(function(a,b){return a+b;},0) / total : 0;
+
+    ranks[rc.label] = {rank: rank, total: total, value: myVal};
+    groupAvg[rc.label] = Math.round(avg * 10) / 10;
+  });
+
+  return {ranks: ranks, groupAvg: groupAvg, peerCount: peerNos.length};
+}
+
+function getFilteredStaffNos() {
+  var scFilter = document.getElementById('storeCatFilter').value;
+  var sfFilter = document.getElementById('staffCatFilter').value;
+  var brFilter = document.getElementById('branchFilter')._selectedVal || '';
+  var staffNos = Object.keys(EMPLOYEES);
+  if (scFilter) staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].filter_group === scFilter; });
+  if (sfFilter) staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].staff_category === sfFilter; });
+  if (brFilter) staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].branch === brFilter; });
+  return staffNos;
+}
+
+function renderGroupDashboard() {
+  var staffNos = getFilteredStaffNos();
+  var dash = document.getElementById('dashboard');
+
+  if (staffNos.length === 0) {
+    dash.innerHTML = '<div class="empty-state"><h2>无匹配人员</h2><p>请调整筛选条件后重新查询</p></div>';
+    return;
+  }
+
+  // 计算群体汇总
+  var RADAR_DIMS = ['天翼发展','宽带发展','FTTR发展','融合套餐','终端合约','积分产出','高套发展','存量套改'];
+  var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
+  var DIM_TO_DWM = {'天翼发展':'天翼','宽带发展':'宽带','FTTR发展':null,'融合套餐':'融合套餐','终端合约':'终端合约','积分产出':'有效积分','高套发展':'新增高套','存量套改':'存量套改'};
+
+  // 多日期时用聚合数据
+  var dateKeys4Group = getDateRange();
+  var isMultiDate4Group = dateKeys4Group.length > 1;
+  var aggEmps4Group = isMultiDate4Group ? getAggregatedEmployees(staffNos, dateKeys4Group) : null;
+
+  // 各维度平均分（动态min-max归一化后取均值）
+  // 先收集所有人员各维度的原始值
+  var dimRawVals = {};
+  RADAR_DIMS.forEach(function(dim) { dimRawVals[dim] = []; });
+  staffNos.forEach(function(k) {
+    var e = aggEmps4Group ? aggEmps4Group[k] : EMPLOYEES[k];
+    if (!e) return;
+    RADAR_DIMS.forEach(function(dim) {
+      var dwmKey = DIM_TO_DWM[dim];
+      var v = 0;
+      if (dwmKey && e.dwm && e.dwm[dwmKey]) v = e.dwm[dwmKey].month || 0;
+      else if (e.dim_personal && e.dim_personal[dim] !== undefined) v = e.dim_personal[dim];
+      dimRawVals[dim].push(v);
+    });
+  });
+  // 对每个维度做min-max归一化，再取均值
+  var radarAvg = {};
+  RADAR_DIMS.forEach(function(dim) {
+    var vals = dimRawVals[dim];
+    var gMin = vals.length > 0 ? Math.min.apply(null, vals) : 0;
+    var gMax = vals.length > 0 ? Math.max.apply(null, vals) : 0;
+    var normSum = 0, cnt = 0;
+    vals.forEach(function(v) {
+      var score = 0;
+      if (gMax === gMin) { score = v > 0 ? 50 : 0; }
+      else { score = (v - gMin) / (gMax - gMin) * 100; }
+      normSum += score; cnt++;
+    });
+    radarAvg[dim] = cnt > 0 ? fmtNum(normSum / cnt) : 0;
+  });
+
+  // 业务均值（用聚合数据）
+  var bizAvg = {};
+  BIZ_KEYS.forEach(function(key) {
+    var sum = 0, cnt = 0;
+    staffNos.forEach(function(k) {
+      var e = aggEmps4Group ? aggEmps4Group[k] : EMPLOYEES[k];
+      if (!e || !e.dwm || !e.dwm[key]) return;
+      sum += e.dwm[key].month; cnt++;
+    });
+    bizAvg[key] = cnt > 0 ? fmtNum(sum / cnt) : 0;
+  });
+
+  // 强弱分布（基于动态归一化得分）
+  var strongCnt = 0, weakCnt = 0, midCnt = 0;
+  staffNos.forEach(function(k) {
+    var e = aggEmps4Group ? aggEmps4Group[k] : EMPLOYEES[k];
+    if (!e) return;
+    var normVals = RADAR_DIMS.map(function(dim) {
+      var dwmKey = DIM_TO_DWM[dim];
+      var v = 0;
+      if (dwmKey && e.dwm && e.dwm[dwmKey]) v = e.dwm[dwmKey].month || 0;
+      else if (e.dim_personal && e.dim_personal[dim] !== undefined) v = e.dim_personal[dim];
+      var vals = dimRawVals[dim];
+      var gMin = vals.length > 0 ? Math.min.apply(null, vals) : 0;
+      var gMax = vals.length > 0 ? Math.max.apply(null, vals) : 0;
+      if (gMax === gMin) return v > 0 ? 50 : 0;
+      return (v - gMin) / (gMax - gMin) * 100;
+    });
+    var avg = normVals.length ? normVals.reduce(function(a,b){return a+b;},0) / normVals.length : 0;
+    if (avg >= 70) strongCnt++;
+    else if (avg < 50) weakCnt++;
+    else midCnt++;
+  });
+
+  // 标题
+  var scFilter = document.getElementById('storeCatFilter').value || '全部';
+  var sfFilter = document.getElementById('staffCatFilter').value || '全部';
+  var groupTitle = (scFilter !== '全部' ? scFilter : '') + (sfFilter !== '全部' ? sfFilter : '');
+  if (!groupTitle) groupTitle = '全部人员';
+
+  dash.innerHTML =
+    '<div class="summary-cards">' +
+      '<div class="summary-item"><div class="val">' + staffNos.length + '</div><div class="lbl">' + groupTitle + '人数</div></div>' +
+      '<div class="summary-item"><div class="val" style="color:#34a853;">' + strongCnt + '</div><div class="lbl">强势人员(综合>=70)</div></div>' +
+      '<div class="summary-item"><div class="val" style="color:#fbbc04;">' + midCnt + '</div><div class="lbl">中等人员(50-70)</div></div>' +
+      '<div class="summary-item"><div class="val" style="color:#ea4335;">' + weakCnt + '</div><div class="lbl">弱势人员(<50)</div></div>' +
+    '</div>' +
+    '<div class="card"><h3>群体业务能力雷达图(均值)</h3><div id="groupRadarChart" style="height:400px;"></div></div>' +
+    '<div class="card"><h3>群体业务均值</h3>' +
+    '<div id="groupBizTabs" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">' +
+      '<button class="trend-tab active" onclick="switchGroupBiz(0)">有效积分</button>' +
+      '<button class="trend-tab" onclick="switchGroupBiz(1)">天翼</button>' +
+      '<button class="trend-tab" onclick="switchGroupBiz(2)">宽带</button>' +
+      '<button class="trend-tab" onclick="switchGroupBiz(3)">融合套餐</button>' +
+      '<button class="trend-tab" onclick="switchGroupBiz(4)">终端合约</button>' +
+      '<button class="trend-tab" onclick="switchGroupBiz(5)">新增高套</button>' +
+      '<button class="trend-tab" onclick="switchGroupBiz(6)">存量套改</button>' +
+    '</div>' +
+    '<div id="groupBizDetail"></div></div>' +
+    '<div class="card card-full"><h3>强弱点分析与培训建议</h3><div id="groupTrainingBox"></div></div>' +
+    '<div class="card card-full"><h3><span class="trend-tab active" id="detailTabStaff" onclick="switchDetailTab(\'staff\')">人员明细</span><span class="trend-tab" id="detailTabStore" onclick="switchDetailTab(\'store\')">门店明细</span><button id="exportBtn" onclick="exportGroupTable()">导出Excel</button></h3><div id="groupTable" style="max-height:500px;overflow-y:auto;"></div></div>';
+
+  setTimeout(function() {
+    // 雷达图
+    var rChart = echarts.init(document.getElementById('groupRadarChart'));
+    charts.groupRadar = rChart;
+    var rNames = RADAR_DIMS;
+    var rValues = rNames.map(function(n) { return parseFloat(radarAvg[n]); });
+    rChart.setOption({
+      tooltip: {
+        trigger: 'item',
+        formatter: function(params) {
+          var vals = params.value;
+          var html = params.name + '<br/>';
+          rNames.forEach(function(n, i) { html += n + ': ' + fmtNum(vals[i]) + '<br/>'; });
+          return html;
+        }
+      },
+      radar: {
+        indicator: rNames.map(function(n) { return {name: n, max: 100}; }),
+        shape: 'polygon', splitNumber: 5,
+        axisName: { color: '#5f6368', fontSize: 12 },
+        splitArea: { areaStyle: { color: ['#fff','#f5f7fa','#fff','#f5f7fa','#fff'] } }
+      },
+      series: [{
+        type: 'radar',
+        data: [{
+          value: rValues,
+          name: groupTitle + '均值',
+          areaStyle: { color: 'rgba(26,115,232,0.15)' },
+          lineStyle: { color: '#1a73e8', width: 2 },
+          itemStyle: { color: '#1a73e8' },
+          symbol: 'circle', symbolSize: 6
+        }]
+      }]
+    });
+
+    // 群体业务均值详情
+    var GROUP_BIZ_COLORS = ['#1a73e8','#34a853','#fbbc04','#ea4335','#9c27b0','#ff6d00','#795548'];
+    window._groupBizAvg = bizAvg;
+    window._groupBizStaffNos = staffNos;
+    window._groupBizColors = GROUP_BIZ_COLORS;
+    window._currentGroupBizIdx = 0;
+    drawGroupBizDetail();
+
+    // 人员明细表格（按综合得分降序排列）
+    var staffWithScore = staffNos.map(function(k) {
+      var e = EMPLOYEES[k];
+      if (!e) return { no: k, score: 0 };
+      var vals = Object.values(e.radar);
+      var avg = vals.length ? vals.reduce(function(a,b){return a+b;},0) / vals.length : 0;
+      return { no: k, score: avg };
+    });
+    staffWithScore.sort(function(a, b) { return b.score - a.score; });
+    window._currentDetailTab = 'staff';
+    drawStaffTable();
+
+    // 群体强弱点分析与培训建议
+    renderGroupTraining(staffNos, radarAvg, bizAvg, groupTitle);
+  }, 100);
+}
+
+function renderGroupTraining(staffNos, radarAvg, bizAvg, groupTitle) {
+  var box = document.getElementById('groupTrainingBox');
+  var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
+  var DIM_TO_BIZ = {'积分产出':'有效积分','天翼发展':'天翼','宽带发展':'宽带','FTTR发展':'FTTR','融合套餐':'融合套餐','终端合约':'终端合约','高套发展':'新增高套','存量套改':'存量套改'};
+  var RADAR_DIMS = Object.keys(radarAvg);
+  var html = '';
+
+  // 用个人值 vs 组均值判断每个维度的强势/弱势人数
+  var dimStats = {};
+  RADAR_DIMS.forEach(function(dim) {
+    var bizKey = DIM_TO_BIZ[dim] || '';
+    var aboveCount = 0, belowZero = 0, belowNeg = 0, belowLow = 0;
+    staffNos.forEach(function(k) {
+      var e = EMPLOYEES[k];
+      if (!e) return;
+      var pv = e.dim_personal && e.dim_personal[dim] !== undefined ? e.dim_personal[dim] : 0;
+      var av = e.dim_group_avg && e.dim_group_avg[dim] !== undefined ? e.dim_group_avg[dim] : 0;
+      if (pv > av) {
+        aboveCount++;
+      } else {
+        // 低于均值的，再细分
+        if (bizKey) {
+          var dwm = e.dwm ? e.dwm[bizKey] : null;
+          var m = dwm ? dwm.month : 0;
+          if (m === 0 || !dwm) belowZero++;
+          else if (m < 0) belowNeg++;
+          else belowLow++;
+        } else {
+          belowLow++;
+        }
+      }
+    });
+    dimStats[dim] = {above: aboveCount, belowZero: belowZero, belowNeg: belowNeg, belowLow: belowLow, belowTotal: belowZero + belowNeg + belowLow};
+  });
+
+  // 优势维度：高于均值人数 > 低于均值人数
+  var strongDims = [];
+  var weakDims = [];
+  RADAR_DIMS.forEach(function(dim) {
+    var s = dimStats[dim];
+    var score = parseFloat(radarAvg[dim]);
+    if (s.above >= s.belowTotal && s.above > 0) strongDims.push({dim:dim, score:score, stats:s});
+    else if (s.belowTotal > s.above) weakDims.push({dim:dim, score:score, stats:s});
+  });
+  strongDims.sort(function(a,b){return b.score-a.score;});
+  weakDims.sort(function(a,b){return a.score-b.score;});
+
+  // 1. 群体优势维度（仅在有优势维度时显示）
+  if (strongDims.length > 0) {
+    html += '<div style="background:#34a85308;border:1px solid #34a85322;border-radius:12px;padding:16px;margin-bottom:16px;">';
+    html += '<div style="font-size:14px;font-weight:600;color:#34a853;margin-bottom:12px;">优势维度</div>';
+    strongDims.forEach(function(item) {
+      var bizKey = DIM_TO_BIZ[item.dim] || '';
+      var avg = bizKey && bizAvg[bizKey] ? bizAvg[bizKey] : '';
+      html += '<div style="margin-bottom:10px;">';
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">';
+      html += '<span style="font-size:13px;font-weight:600;color:var(--text);">' + item.dim + '</span>';
+      html += '<span style="background:#34a85318;color:#34a853;padding:1px 6px;border-radius:4px;font-size:11px;">' + fmtNum(item.score) + '分</span>';
+      if (avg) html += '<span style="font-size:11px;color:var(--text2);">群体均值' + fmtNum(avg) + '</span>';
+      html += '</div>';
+      html += '<div style="font-size:12px;color:var(--text2);">' + item.stats.above + '人高于均值，建议持续巩固，可作为标杆带动其他人员</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  // 2. 弱势维度与培训建议（合并为一个区块）
+  if (weakDims.length > 0) {
+    html += '<div style="background:#ea433508;border:1px solid #ea433522;border-radius:12px;padding:16px;">';
+    html += '<div style="font-size:14px;font-weight:600;color:#ea4335;margin-bottom:12px;">弱势维度与培训建议</div>';
+    weakDims.forEach(function(item) {
+      var bizKey = DIM_TO_BIZ[item.dim] || '';
+      var avg = bizKey && bizAvg[bizKey] ? bizAvg[bizKey] : '';
+      var level = item.score < 30 ? '严重不足' : '有待提升';
+      var levelClr = item.score < 30 ? '#ea4335' : '#fbbc04';
+      var tips = getGroupTrainingTip(item.dim, item.score);
+
+      html += '<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">';
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">';
+      html += '<span style="font-size:13px;font-weight:600;color:var(--text);">' + item.dim + '</span>';
+      html += '<span style="background:' + levelClr + '18;color:' + levelClr + ';padding:1px 6px;border-radius:4px;font-size:11px;">' + level + ' ' + fmtNum(item.score) + '分</span>';
+      if (avg) html += '<span style="font-size:11px;color:var(--text2);">群体均值' + fmtNum(avg) + '</span>';
+      html += '</div>';
+      html += '<div style="font-size:12px;color:var(--text2);line-height:1.6;">';
+      html += item.stats.above + '人高于均值、' + item.stats.belowTotal + '人低于均值';
+      if (item.stats.belowTotal > 0) {
+        var belowParts = [];
+        if (item.stats.belowLow > 0) belowParts.push(item.stats.belowLow + '人有产出但低于均值');
+        if (item.stats.belowZero > 0) belowParts.push('<span style="color:#ea4335;">' + item.stats.belowZero + '人无产能</span>');
+        if (item.stats.belowNeg > 0) belowParts.push('<span style="color:#fbbc04;">' + item.stats.belowNeg + '人产能为负</span>');
+        if (belowParts.length) html += '（' + belowParts.join('、') + '）';
+      }
+      html += '</div>';
+      html += '<div style="margin-top:6px;font-size:12px;color:var(--text2);line-height:1.7;padding-left:8px;border-left:3px solid #ff6d0033;">' + tips + '</div>';
+      html += '</div>';
+    });
+    // remove last border
+    html = html.replace(/border-bottom:1px solid var\(--border\);">(\s*<\/div>\s*$)/, '">');
+    html += '</div>';
+  }
+
+  box.innerHTML = html;
+}
+
+function getGroupTrainingTip(dim, score) {
+  var tips = {
+    '积分产出': '整体积分产出偏低，建议加强套餐捆绑销售培训，提升开口率和转化率，重点关注低积分人员的销售话术和产品熟悉度。',
+    '天翼发展': '天翼新增偏弱，建议组织天翼套餐卖点培训，强化竞品对比话术，提升销售开口率和主动推荐意识。',
+    '宽带发展': '宽带发展不足，建议加强宽带融合套餐培训，提升装维协同和主动营销意识，结合存量宽带提速升级推进。',
+    'FTTR发展': 'FTTR发展偏弱，建议加强FTTR产品演示培训，提升场景化营销能力，结合宽带新装和存量提速场景主动推荐。',
+    '融合套餐': '融合套餐发展不足，建议加强融合套餐卖点培训，提升单转融主动推荐意识，强化融合套餐优势话术。',
+    '终端合约': '终端合约偏弱，建议加强终端合约产品培训，提升合约购机场景推荐能力，结合5G换机需求主动营销。',
+    '高套发展': '高套发展不足，建议加强高套产品培训，提升档次推荐和升级引导能力，结合客户消费水平精准推荐。',
+    '存量套改': '存量套改偏弱，建议加强存量经营培训，提升到期用户挽留和低套升档能力，强化精准营销和主动触达意识。'
+  };
+  return tips[dim] || '建议加强该领域专项培训，提升整体业务能力。';
+}
+
+function renderDashboard(emp, staffNo) {
+  var dash = document.getElementById('dashboard');
+
+  // 多日期时用聚合数据替代单日期数据
+  var dateKeys = getDateRange();
+  if (dateKeys.length > 1) {
+    var aggEmps = getAggregatedEmployees([staffNo], dateKeys);
+    if (aggEmps[staffNo]) emp = aggEmps[staffNo];
+  }
+
+  // 动态计算同组排名：根据当前筛选条件确定排名范围
+  var peerNos = getPeerStaffNos(emp);
+  window._peerNos = peerNos;
+  var dynamicRank = computeDynamicRanks(emp, peerNos);
+  var sameType = dynamicRank.peerCount;
+
+  // 用公共函数计算动态雷达得分和组均值
+  var scoreResult = computeRadarScores(emp, peerNos);
+  var dynamicRadarScores = scoreResult.radarScores;
+  var dimVals4Score = scoreResult.dimVals;
+  var dimPersonal4Score = scoreResult.personalVals;
+  var dimA = scoreResult.dimAvg;
+
+  var avgScore = 0;
+  var RADAR_DIMS_LIST = ['天翼发展','宽带发展','FTTR发展','融合套餐','终端合约','积分产出','高套发展','存量套改'];
+  RADAR_DIMS_LIST.forEach(function(dim) { avgScore += dynamicRadarScores[dim]; });
+  avgScore = RADAR_DIMS_LIST.length > 0 ? fmtNum(avgScore / RADAR_DIMS_LIST.length) : '0';
+
+  // 生成排名范围描述
+  var scFilter = document.getElementById('storeCatFilter').value;
+  var sfFilter = document.getElementById('staffCatFilter').value;
+  var rankScopeDesc = [];
+  if (scFilter) rankScopeDesc.push(scFilter);
+  else if (emp.filter_group) rankScopeDesc.push(emp.filter_group);
+  if (sfFilter) rankScopeDesc.push(sfFilter);
+  if (!rankScopeDesc.length) rankScopeDesc.push(emp.store_type || emp.filter_group || '全部');
+  var rankLabel = rankScopeDesc.join(' ');
+
+  // 存储动态雷达得分供子组件使用
+  window._dynamicRadarScores = dynamicRadarScores;
+
+  var dimP = emp.dim_personal || {};
+  var strongCount = 0;
+  var weakCount = 0;
+  RADAR_DIMS_LIST.forEach(function(dim) {
+    var pv = dimPersonal4Score[dim];
+    var av = dimA[dim] || 0;
+    if (pv > av) strongCount++;
+    else if (pv < av) weakCount++;
+  });
+
+  // 存储动态排名供子组件使用
+  window._dynamicRank = dynamicRank;
+  window._rankLabel = rankLabel;
+
+  var frozenBanner = '';
+  if (emp.suspected_frozen) {
+    frozenBanner = '<div style="grid-column:1/-1;background:#fff3cd;border:1px solid #ffc107;border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:12px;">' +
+      '<span style="font-size:22px;color:#856404;">&#9888;</span>' +
+      '<div><div style="font-weight:600;color:#856404;font-size:14px;">人员状态异常提示</div>' +
+      '<div style="font-size:13px;color:#856404;margin-top:2px;">该人员当月所有业务数据均为0，可能已冻结、离职或门店已闭店/改名，数据仅供参考。</div></div></div>';
+  }
+
+  dash.innerHTML =
+    frozenBanner +
+    '<div class="summary-cards">' +
+      '<div class="summary-item"><div class="val">' + emp.staff_nm + '</div><div class="lbl">' + emp.store_name + (emp.staff_category ? ' | ' + emp.staff_category : '') + '</div></div>' +
+      '<div class="summary-item"><div class="val">' + rankLabel + '</div><div class="lbl">排名范围 | 同组' + sameType + '人</div></div>' +
+      '<div class="summary-item"><div class="val">' + fmtNum(avgScore) + '</div><div class="lbl">综合得分</div></div>' +
+      '<div class="summary-item"><div class="val">' + strongCount + '强 / ' + weakCount + '弱</div><div class="lbl">强弱点维度数</div></div>' +
+    '</div>' +
+    '<div class="card"><h3>业务能力雷达图</h3><div id="radarChart" style="height:360px;"></div></div>' +
+    '<div class="card"><h3>同组排名对比</h3><div id="rankChart" style="height:360px;"></div></div>' +
+    '<div class="card"><h3>业务详情分析</h3>' +
+    '<div id="bizTabs" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">' +
+      '<button class="trend-tab active" onclick="switchBiz(0)">有效积分</button>' +
+      '<button class="trend-tab" onclick="switchBiz(1)">天翼</button>' +
+      '<button class="trend-tab" onclick="switchBiz(2)">宽带</button>' +
+      '<button class="trend-tab" onclick="switchBiz(3)">融合套餐</button>' +
+      '<button class="trend-tab" onclick="switchBiz(4)">终端合约</button>' +
+      '<button class="trend-tab" onclick="switchBiz(5)">新增高套</button>' +
+      '<button class="trend-tab" onclick="switchBiz(6)">存量套改</button>' +
+    '</div>' +
+    '<div id="bizDetail"></div></div>' +
+    '<div class="card"><h3>月趋势分析图</h3>' +
+    '<div id="trendTabs" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">' +
+      '<button class="trend-tab active" onclick="switchTrend(0)">有效积分</button>' +
+      '<button class="trend-tab" onclick="switchTrend(1)">天翼</button>' +
+      '<button class="trend-tab" onclick="switchTrend(2)">宽带</button>' +
+      '<button class="trend-tab" onclick="switchTrend(3)">融合套餐</button>' +
+      '<button class="trend-tab" onclick="switchTrend(4)">终端合约</button>' +
+      '<button class="trend-tab" onclick="switchTrend(5)">新增高套</button>' +
+      '<button class="trend-tab" onclick="switchTrend(6)">存量套改</button>' +
+    '</div>' +
+    '<div id="trendChart" style="height:360px;"></div></div>' +
+    '<div class="card card-full"><h3>强弱点分析与培训建议</h3><div class="training-box" id="trainingBox"></div></div>';
+
+  setTimeout(function() {
+    renderRadar(emp);
+    renderRanks(emp);
+    renderDWM(emp);
+    renderTrend(emp, staffNo);
+    renderTraining(emp);
+  }, 100);
+}
+
+function renderRadar(emp) {
+  // 使用公共函数计算雷达得分
+  var peerNos = window._peerNos || getFilteredStaffNos();
+  var scoreResult = computeRadarScores(emp, peerNos);
+  var dynamicRadar = scoreResult.radarScores;
+
+  var names = Object.keys(dynamicRadar);
+  var values = names.map(function(n) { return dynamicRadar[n]; });
+
+  var chart = echarts.init(document.getElementById('radarChart'));
+  charts.radar = chart;
+  var indicators = names.map(function(n) { return {name: n, max: 100}; });
+  chart.setOption({
+    tooltip: {
+      trigger: 'item',
+      formatter: function(params) {
+        var vals = params.value;
+        var names = Object.keys(dynamicRadar);
+        var html = params.name + '<br/>';
+        names.forEach(function(n, i) { html += n + ': ' + fmtNum(vals[i]) + '<br/>'; });
+        return html;
+      }
+    },
+    radar: {
+      indicator: indicators,
+      shape: 'polygon',
+      splitNumber: 5,
+      axisName: { color: '#5f6368', fontSize: 12 },
+      splitArea: { areaStyle: { color: ['#fff','#f5f7fa','#fff','#f5f7fa','#fff'] } }
+    },
+    series: [{
+      type: 'radar',
+      data: [{
+        value: values,
+        name: emp.staff_nm,
+        areaStyle: { color: 'rgba(26,115,232,0.15)' },
+        lineStyle: { color: '#1a73e8', width: 2 },
+        itemStyle: { color: '#1a73e8' },
+        symbol: 'circle', symbolSize: 6
+      }]
+    }]
+  });
+}
+
+function renderRanks(emp) {
+  var container = document.getElementById('rankChart');
+  var dynRank = window._dynamicRank;
+  var labels = Object.keys(dynRank.ranks);
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+  html += '<thead><tr style="background:var(--primary-light);font-weight:600;">';
+  html += '<th style="padding:8px 6px;text-align:left;">指标</th>';
+  html += '<th style="padding:8px 6px;text-align:center;">排名</th>';
+  html += '<th style="padding:8px 6px;text-align:center;">个人值</th>';
+  html += '<th style="padding:8px 6px;text-align:center;">组均值</th>';
+  html += '<th style="padding:8px 6px;text-align:left;width:40%;">位置</th>';
+  html += '</tr></thead><tbody>';
+  labels.forEach(function(l) {
+    var r = dynRank.ranks[l];
+    var avg = dynRank.groupAvg[l] || 0;
+    var pct = r.total > 0 ? ((r.total - r.rank + 1) / r.total * 100) : 0;
+    var barColor = pct >= 70 ? '#34a853' : pct >= 40 ? '#fbbc04' : '#ea4335';
+    html += '<tr style="border-bottom:1px solid #eee;">';
+    html += '<td style="padding:6px;">' + l + '</td>';
+    html += '<td style="padding:6px;text-align:center;font-weight:600;color:' + barColor + ';">' + r.rank + '/' + r.total + '</td>';
+    html += '<td style="padding:6px;text-align:center;">' + fmtNum(r.value) + '</td>';
+    html += '<td style="padding:6px;text-align:center;color:var(--text2);">' + fmtNum(avg) + '</td>';
+    html += '<td style="padding:6px;"><div class="progress-bg"><div class="progress-fill" style="width:' + pct + '%;background:' + barColor + ';"></div></div></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
+var BIZ_COLORS = ['#1a73e8','#34a853','#fbbc04','#ea4335','#9c27b0','#ff6d00','#795548'];
+var currentBizIdx = 0;
+
+function switchBiz(idx) {
+  currentBizIdx = idx;
+  var tabs = document.querySelectorAll('#bizTabs .trend-tab');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].className = i === idx ? 'trend-tab active' : 'trend-tab';
+  }
+  drawBizDetail();
+  // 同步趋势图
+  currentTrendIdx = idx;
+  var ttabs = document.querySelectorAll('#trendTabs .trend-tab');
+  for (var i = 0; i < ttabs.length; i++) {
+    ttabs[i].className = i === idx ? 'trend-tab active' : 'trend-tab';
+  }
+  drawTrend();
+}
+
+function drawBizDetail() {
+  var staffNo = document.getElementById('employeeSelect')._selectedVal || '';
+  if (!staffNo || !EMPLOYEES[staffNo]) return;
+  var emp = EMPLOYEES[staffNo];
+  var key = BIZ_KEYS[currentBizIdx];
+  var color = BIZ_COLORS[currentBizIdx];
+  var dwm = emp.dwm[key] || {day:0, week:0, month:0};
+  var d = dwm.day, w = dwm.week, m = dwm.month;
+
+  // 同组均值与排名（使用动态排名）
+  var dynRank = window._dynamicRank;
+  var groupAvg = dynRank ? (dynRank.groupAvg[key] || 0) : 0;
+  var rankInfo = dynRank ? dynRank.ranks[key] : null;
+  var vsAvg = groupAvg > 0 ? ((m - groupAvg) / groupAvg * 100) : 0;
+
+  // 同比环比
+  var my = emp.mom_yoy ? emp.mom_yoy[key] : null;
+  var momVal = my ? my.mom : 0;
+  var yoyVal = my ? my.yoy : 0;
+  var momPrev = my ? my.mom_prev : 0;
+  var yoyPrev = my ? my.yoy_prev : 0;
+  var hasMom = my ? my.has_mom : false;
+  var hasYoy = my ? my.has_yoy : false;
+
+  function fmtPct(v) {
+    if (v > 0) return '<span style="color:#34a853;font-weight:600;">+' + v.toFixed(1) + '%</span>';
+    if (v < 0) return '<span style="color:#ea4335;font-weight:600;">' + v.toFixed(1) + '%</span>';
+    return '<span style="color:var(--text2);">0%</span>';
+  }
+
+  var html = '';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px;">';
+
+  // === 左列：核心指标大卡片 ===
+  html += '<div style="background:linear-gradient(135deg,' + color + '14,' + color + '08);border-radius:12px;padding:20px;text-align:center;border:1px solid ' + color + '22;display:flex;flex-direction:column;justify-content:center;">';
+  html += '<div style="font-size:12px;color:var(--text2);margin-bottom:6px;">本月累计</div>';
+  html += '<div style="font-size:42px;font-weight:800;color:' + color + ';line-height:1.1;">' + fmtNum(m) + '</div>';
+  html += '<div style="margin-top:10px;display:flex;justify-content:center;gap:16px;font-size:12px;">';
+  if (rankInfo) {
+    var pct = rankInfo.total > 0 ? ((rankInfo.total - rankInfo.rank + 1) / rankInfo.total * 100) : 0;
+    var rClr = pct >= 70 ? '#34a853' : pct >= 40 ? '#fbbc04' : '#ea4335';
+    html += '<span style="background:' + rClr + '18;color:' + rClr + ';padding:2px 8px;border-radius:10px;font-weight:600;">排名 ' + rankInfo.rank + '/' + rankInfo.total + '</span>';
+  }
+  if (groupAvg > 0) {
+    html += '<span style="background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:10px;">均值 ' + fmtNum(groupAvg) + '</span>';
+  }
+  html += '</div>';
+  html += '</div>';
+
+  // === 中列：环比 + 同比 ===
+  html += '<div style="display:flex;flex-direction:column;gap:12px;">';
+  // 环比
+  html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;flex:1;display:flex;flex-direction:column;justify-content:center;">';
+  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:4px;">环比（较上月）</div>';
+  if (hasMom) {
+    html += '<div style="display:flex;align-items:baseline;gap:8px;">';
+    html += '<span style="font-size:24px;font-weight:700;">' + fmtPct(momVal) + '</span>';
+    html += '</div>';
+    html += '<div style="font-size:11px;color:var(--text2);margin-top:4px;">上月 ' + fmtNum(momPrev) + ' → 本月 ' + fmtNum(m) + '</div>';
+  } else {
+    html += '<div style="font-size:16px;color:var(--text2);margin-top:4px;">暂无数据</div>';
+  }
+  html += '</div>';
+  // 同比
+  html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;flex:1;display:flex;flex-direction:column;justify-content:center;">';
+  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:4px;">同比（较去年同期）</div>';
+  if (hasYoy) {
+    html += '<div style="display:flex;align-items:baseline;gap:8px;">';
+    html += '<span style="font-size:24px;font-weight:700;">' + fmtPct(yoyVal) + '</span>';
+    html += '</div>';
+    html += '<div style="font-size:11px;color:var(--text2);margin-top:4px;">同期 ' + fmtNum(yoyPrev) + ' → 本月 ' + fmtNum(m) + '</div>';
+  } else {
+    html += '<div style="font-size:16px;color:var(--text2);margin-top:4px;">暂无数据</div>';
+  }
+  html += '</div>';
+  html += '</div>';
+
+  // === 右列：日/周/月进度 ===
+  html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+
+  // 当日
+  var dayPct = m > 0 ? (d / m * 100) : 0;
+  html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;justify-content:center;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
+  html += '<span style="font-size:12px;color:var(--text2);">当日完成</span>';
+  html += '<span style="font-size:16px;font-weight:700;">' + fmtNum(d) + '</span>';
+  html += '</div>';
+  html += '<div style="height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;">';
+  html += '<div style="height:100%;width:' + Math.min(dayPct, 100) + '%;background:' + color + ';border-radius:3px;opacity:0.5;transition:width 0.5s;"></div>';
+  html += '</div>';
+  html += '<div style="font-size:11px;color:var(--text2);margin-top:3px;">占月累计 ' + dayPct.toFixed(1) + '%</div>';
+  html += '</div>';
+
+  // 本周
+  var weekPct = m > 0 ? (w / m * 100) : 0;
+  html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;justify-content:center;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
+  html += '<span style="font-size:12px;color:var(--text2);">本周累计</span>';
+  html += '<span style="font-size:16px;font-weight:700;">' + fmtNum(w) + '</span>';
+  html += '</div>';
+  html += '<div style="height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;">';
+  html += '<div style="height:100%;width:' + Math.min(weekPct, 100) + '%;background:' + color + ';border-radius:3px;opacity:0.7;transition:width 0.5s;"></div>';
+  html += '</div>';
+  html += '<div style="font-size:11px;color:var(--text2);margin-top:3px;">占月累计 ' + weekPct.toFixed(1) + '%</div>';
+  html += '</div>';
+
+  // 本月（基准条）
+  html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;justify-content:center;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
+  html += '<span style="font-size:12px;color:var(--text2);">本月累计</span>';
+  html += '<span style="font-size:16px;font-weight:700;">' + fmtNum(m) + '</span>';
+  html += '</div>';
+  html += '<div style="height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;">';
+  html += '<div style="height:100%;width:100%;background:' + color + ';border-radius:3px;transition:width 0.5s;"></div>';
+  html += '</div>';
+  html += '</div>';
+
+  html += '</div>';
+
+  html += '</div>';
+
+  document.getElementById('bizDetail').innerHTML = html;
+}
+
+function renderDWM(emp) {
+  currentBizIdx = 0;
+  var btabs = document.querySelectorAll('#bizTabs .trend-tab');
+  for (var i = 0; i < btabs.length; i++) {
+    btabs[i].className = i === 0 ? 'trend-tab active' : 'trend-tab';
+  }
+  currentTrendIdx = 0;
+  var ttabs = document.querySelectorAll('#trendTabs .trend-tab');
+  for (var i = 0; i < ttabs.length; i++) {
+    ttabs[i].className = i === 0 ? 'trend-tab active' : 'trend-tab';
+  }
+  drawBizDetail();
+}
+
+var TREND_CONFIGS = [
+  { key: '积分产出', label: '月有效积分趋势', color: '#1a73e8' },
+  { key: '天翼发展', label: '月天翼趋势', color: '#34a853' },
+  { key: '宽带发展', label: '月宽带趋势', color: '#fbbc04' },
+  { key: '融合套餐', label: '月融合套餐趋势', color: '#ea4335' },
+  { key: '终端合约', label: '月终端合约趋势', color: '#9c27b0' },
+  { key: '高套发展', label: '月新增高套趋势', color: '#ff6d00' },
+  { key: '存量套改', label: '月存量套改趋势', color: '#795548' }
+];
+var currentTrendIdx = 0;
+
+function switchTrend(idx) {
+  currentTrendIdx = idx;
+  var ttabs = document.querySelectorAll('#trendTabs .trend-tab');
+  for (var i = 0; i < ttabs.length; i++) {
+    ttabs[i].className = i === idx ? 'trend-tab active' : 'trend-tab';
+  }
+  drawTrend();
+  // 同步业务详情
+  currentBizIdx = idx;
+  var btabs = document.querySelectorAll('#bizTabs .trend-tab');
+  for (var i = 0; i < btabs.length; i++) {
+    btabs[i].className = i === idx ? 'trend-tab active' : 'trend-tab';
+  }
+  drawBizDetail();
+}
+
+function drawTrend() {
+  var staffNo = document.getElementById('employeeSelect')._selectedVal || '';
+  if (!staffNo || !EMPLOYEES[staffNo]) return;
+  var emp = EMPLOYEES[staffNo];
+  var trend = TRENDS[staffNo];
+  var chart = echarts.init(document.getElementById('trendChart'));
+  charts.trend = chart;
+  if (!trend || !trend.dates || trend.dates.length < 1) {
+    chart.setOption({
+      title: { text: '积累多天数据后可查看趋势', left: 'center', top: 'center', textStyle: { color: '#9e9e9e', fontSize: 14 } }
+    });
+    return;
+  }
+  // 本年数据：1月~当前月份；非本年数据：1月~12月完整显示
+  var dateYear = currentDate ? parseInt(currentDate.substring(0,4)) : 0;
+  var realYear = new Date().getFullYear();
+  var curYear = currentDate ? currentDate.substring(2,4) : '';
+  var endMonth = (dateYear === realYear) ? parseInt(currentDate.substring(4,6)) : 12;
+  var allMonths = [];
+  var monthData = {};
+  for (var m = 1; m <= endMonth; m++) {
+    var label = curYear + '年' + m + '月';
+    allMonths.push(label);
+    monthData[label] = null;
+  }
+  var cfg = TREND_CONFIGS[currentTrendIdx];
+  var allData = trend[cfg.key] || [];
+  // 将有数据的月份填入
+  var curYearPrefix = curYear + '年';
+  for (var i = 0; i < trend.dates.length; i++) {
+    if (trend.dates[i].indexOf(curYearPrefix) === 0) {
+      monthData[trend.dates[i]] = allData[i];
+    }
+  }
+  var seriesData = allMonths.map(function(lbl) { return monthData[lbl]; });
+  chart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      formatter: function(params) {
+        var p = params[0];
+        return p.name + '<br/>' + p.marker + ' ' + p.seriesName + ': ' + fmtNum(p.value);
+      }
+    },
+    grid: { left: 60, right: 30, top: 40, bottom: 30 },
+    xAxis: { type: 'category', data: allMonths, axisLabel: { fontSize: 12 } },
+    yAxis: { type: 'value', axisLabel: { fontSize: 12, formatter: function(v) { return fmtNum(v); } } },
+    series: [{
+      name: cfg.label, type: 'line', data: seriesData, smooth: true,
+      connectNulls: false,
+      lineStyle: { color: cfg.color, width: 2 },
+      itemStyle: { color: cfg.color },
+      areaStyle: { color: cfg.color, opacity: 0.1 },
+      symbol: 'circle', symbolSize: 6
+    }]
+  });
+}
+
+function renderTrend(emp, staffNo) {
+  currentTrendIdx = 0;
+  var ttabs = document.querySelectorAll('#trendTabs .trend-tab');
+  for (var i = 0; i < ttabs.length; i++) {
+    ttabs[i].className = i === 0 ? 'trend-tab active' : 'trend-tab';
+  }
+  drawTrend();
+}
+
+function switchGroupBiz(idx) {
+  window._currentGroupBizIdx = idx;
+  var tabs = document.querySelectorAll('#groupBizTabs .trend-tab');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].className = i === idx ? 'trend-tab active' : 'trend-tab';
+  }
+  drawGroupBizDetail();
+}
+
+function drawGroupBizDetail() {
+  var idx = window._currentGroupBizIdx || 0;
+  var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
+  var BIZ_COLORS = window._groupBizColors;
+  var key = BIZ_KEYS[idx];
+  var color = BIZ_COLORS[idx];
+  var staffNos = window._groupBizStaffNos || [];
+  var bizAvg = window._groupBizAvg || {};
+
+  // 计算该维度的统计值
+  var vals = [];
+  var zeroCount = 0;
+  var negCount = 0;
+  staffNos.forEach(function(k) {
+    var e = EMPLOYEES[k];
+    if (!e) return;
+    var dwm = e.dwm ? e.dwm[key] : null;
+    var m = dwm ? dwm.month : 0;
+    if (m > 0) vals.push(m);
+    else if (m === 0 || !dwm) zeroCount++;
+    else negCount++;
+  });
+  var nonZeroCount = vals.length;
+  var avg = bizAvg[key] || 0;
+  var maxVal = vals.length ? Math.max.apply(null, vals) : 0;
+  var minVal = vals.length ? Math.min.apply(null, vals) : 0;
+  var maxPerson = '', minPerson = '';
+  staffNos.forEach(function(k) {
+    var e = EMPLOYEES[k];
+    if (!e) return;
+    var dwm = e.dwm ? e.dwm[key] : null;
+    if (dwm && dwm.month === maxVal && !maxPerson) maxPerson = e.staff_nm;
+    if (dwm && dwm.month === minVal && !minPerson) minPerson = e.staff_nm;
+  });
+
+  var html = '';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px;">';
+
+  // 左列：均值大卡片
+  html += '<div style="background:linear-gradient(135deg,' + color + '14,' + color + '08);border-radius:12px;padding:20px;text-align:center;border:1px solid ' + color + '22;display:flex;flex-direction:column;justify-content:center;">';
+  html += '<div style="font-size:12px;color:var(--text2);margin-bottom:6px;">群体月累计均值</div>';
+  html += '<div style="font-size:42px;font-weight:800;color:' + color + ';line-height:1.1;">' + fmtNum(avg) + '</div>';
+  html += '<div style="margin-top:10px;display:flex;justify-content:center;gap:10px;font-size:12px;flex-wrap:wrap;">';
+  html += '<span style="background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:10px;">' + staffNos.length + '人参与</span>';
+  html += '<span style="background:#34a85318;color:#34a853;padding:2px 8px;border-radius:10px;">' + nonZeroCount + '人有产出</span>';
+  html += '<span style="background:#ea433518;color:#ea4335;padding:2px 8px;border-radius:10px;cursor:pointer;" onclick="showZeroStaff(\'' + key + '\',0)">' + zeroCount + '人无产能</span>';
+  if (negCount > 0) {
+    html += '<span style="background:#fbbc0418;color:#fbbc04;padding:2px 8px;border-radius:10px;cursor:pointer;" onclick="showZeroStaff(\'' + key + '\',1)">' + negCount + '人产能为负</span>';
+  }
+  html += '</div></div>';
+
+  // 中列：数据概览
+  var median = 0;
+  var sortedVals = vals.slice().sort(function(a,b){return a-b;});
+  if (sortedVals.length > 0) {
+    var mid = Math.floor(sortedVals.length / 2);
+    median = sortedVals.length % 2 ? sortedVals[mid] : ((sortedVals[mid-1] + sortedVals[mid]) / 2);
+  }
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+  // 最高值
+  html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">';
+  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;">最高值</div>';
+  html += '<div style="font-size:28px;font-weight:800;color:#34a853;">' + fmtNum(maxVal) + '</div>';
+  html += '<div style="font-size:12px;color:#34a853;margin-top:4px;font-weight:500;">' + (maxPerson || '暂无') + '</div>';
+  html += '</div>';
+  // 最低值
+  html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">';
+  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;">最低值</div>';
+  html += '<div style="font-size:28px;font-weight:800;color:#ea4335;">' + fmtNum(minVal) + '</div>';
+  html += '<div style="font-size:12px;color:#ea4335;margin-top:4px;font-weight:500;">' + (minPerson || '暂无') + '</div>';
+  html += '</div>';
+  // 中位数
+  html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">';
+  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;">中位数</div>';
+  html += '<div style="font-size:28px;font-weight:800;color:' + color + ';">' + fmtNum(median) + '</div>';
+  html += '<div style="font-size:12px;color:var(--text2);margin-top:4px;">中间水平</div>';
+  html += '</div>';
+  // 差距
+  var gap = maxVal - minVal;
+  html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">';
+  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;">差距</div>';
+  html += '<div style="font-size:28px;font-weight:800;color:#fbbc04;">' + fmtNum(gap) + '</div>';
+  html += '<div style="font-size:12px;color:var(--text2);margin-top:4px;">最高-最低</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // 右列：人数分布（动态5等分）
+  var step = maxVal > 0 ? Math.ceil(maxVal / 5) : 1;
+  var rangeCounts = [0,0,0,0,0];
+  var rangeLabels = [];
+  for (var r = 0; r < 5; r++) {
+    var lo = r * step;
+    var hi = (r + 1) * step - (r < 4 ? 1 : 0);
+    rangeLabels.push(lo + '~' + hi);
+  }
+  staffNos.forEach(function(k) {
+    var e = EMPLOYEES[k];
+    var v = (e && e.dwm && e.dwm[key]) ? e.dwm[key].month : 0;
+    var bucket = Math.floor(v / step);
+    if (bucket > 4) bucket = 4;
+    rangeCounts[bucket]++;
+  });
+  html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;">';
+  html += '<div style="font-size:13px;color:var(--text);font-weight:600;margin-bottom:12px;">人数分布</div>';
+  for (var r = 0; r < 5; r++) {
+    var pct = staffNos.length > 0 ? (rangeCounts[r] / staffNos.length * 100) : 0;
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">';
+    html += '<span style="font-size:12px;color:var(--text2);width:64px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;">' + rangeLabels[r] + '</span>';
+    html += '<div style="flex:1;height:10px;background:#f0f0f0;border-radius:5px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:' + color + ';border-radius:5px;opacity:0.7;transition:width 0.3s;"></div></div>';
+    html += '<span style="font-size:12px;color:var(--text);width:20px;font-weight:600;text-align:right;">' + rangeCounts[r] + '</span>';
+    html += '</div>';
+  }
+  html += '</div>';
+
+  html += '</div>';
+  document.getElementById('groupBizDetail').innerHTML = html;
+}
+
+function exportGroupTable() {
+  var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
+  var staffNos = getFilteredStaffNos();
+  if (staffNos.length === 0) { alert('无数据可导出'); return; }
+
+  var dateKeys = getDateRange();
+  var isMultiDate = dateKeys.length > 1;
+  var aggEmps = getAggregatedEmployees(staffNos, dateKeys);
+  var dateLabel = dateKeys.length === 1 ? (dateKeys[0].slice(0,4) + '-' + dateKeys[0].slice(4,6) + '-' + dateKeys[0].slice(6)) : (dateKeys[dateKeys.length-1].slice(0,4) + '-' + dateKeys[dateKeys.length-1].slice(4,6) + '-' + dateKeys[dateKeys.length-1].slice(6) + '_to_' + dateKeys[0].slice(0,4) + '-' + dateKeys[0].slice(4,6) + '-' + dateKeys[0].slice(6));
+
+  if (window._currentDetailTab === 'store') {
+    // 门店明细导出
+    var storeMap = {};
+    staffNos.forEach(function(k) {
+      var e = aggEmps[k];
+      if (!e) return;
+      var sn = e.store_name || '未知';
+      if (!storeMap[sn]) {
+        storeMap[sn] = { name: sn, type: e.store_type, branch: e.branch, count: 0, dwmSum: {}, scoreSum: 0 };
+      }
+      var s = storeMap[sn];
+      s.count++;
+      var avg = e._avgScore !== undefined ? e._avgScore : (Object.values(e.radar).reduce(function(a,b){return a+b;},0) / Math.max(Object.values(e.radar).length, 1));
+      s.scoreSum += avg;
+      BIZ_KEYS.forEach(function(bk) {
+        var dwm = e.dwm ? e.dwm[bk] : null;
+        s.dwmSum[bk] = (s.dwmSum[bk] || 0) + (dwm ? dwm.month : 0);
+      });
+    });
+    var stores = Object.values(storeMap);
+    stores.forEach(function(s) { s.avgScore = s.count > 0 ? s.scoreSum / s.count : 0; });
+    stores.sort(function(a, b) { return b.avgScore - a.avgScore; });
+
+    var headers = ['门店','门店分类','支局','人数'];
+    BIZ_KEYS.forEach(function(k) { headers.push(k + (isMultiDate ? '(期间合计)' : '(合计)')); });
+    headers.push('综合得分(均值)');
+    var aoa = [headers];
+    stores.forEach(function(s) {
+      var row = [s.name, s.type, s.branch, s.count];
+      BIZ_KEYS.forEach(function(bk) { row.push(s.dwmSum[bk] || 0); });
+      row.push(Math.round(s.avgScore * 10) / 10);
+      aoa.push(row);
+    });
+
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = headers.map(function(h) { return {wch: h.length > 6 ? 14 : 10}; });
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '门店明细');
+    XLSX.writeFile(wb, '门店明细_' + dateLabel + '.xlsx');
+    return;
+  }
+
+  // 人员明细导出
+  var staffWithScore = staffNos.map(function(k) {
+    var e = aggEmps[k];
+    if (!e) return { no: k, score: 0 };
+    var avg = e._avgScore !== undefined ? e._avgScore : (Object.values(e.radar).reduce(function(a,b){return a+b;},0) / Math.max(Object.values(e.radar).length, 1));
+    return { no: k, score: avg };
+  });
+  staffWithScore.sort(function(a, b) { return b.score - a.score; });
+
+  // 构建SheetJS数据
+  var headers = ['工号','姓名','门店','门店分类','人员类型','支局'];
+  BIZ_KEYS.forEach(function(k) { headers.push(k + (isMultiDate ? '(期间合计)' : '(月)')); });
+  headers.push('综合得分');
+  var aoa = [headers];
+
+  staffWithScore.forEach(function(s) {
+    var e = aggEmps[s.no];
+    if (!e) return;
+    var avg = e._avgScore !== undefined ? e._avgScore : (Object.values(e.radar).reduce(function(a,b){return a+b;},0) / Math.max(Object.values(e.radar).length, 1));
+    var row = [s.no, e.staff_nm, e.store_name, e.store_type, e.staff_category, e.branch];
+    BIZ_KEYS.forEach(function(bk) {
+      var dwm = e.dwm ? e.dwm[bk] : null;
+      row.push(dwm ? dwm.month : 0);
+    });
+    row.push(Math.round(avg * 10) / 10);
+    aoa.push(row);
+  });
+
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  // 设置列宽
+  ws['!cols'] = headers.map(function(h) { return {wch: h.length > 6 ? 14 : 10}; });
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '人员明细');
+  XLSX.writeFile(wb, '人员明细_' + dateLabel + '.xlsx');
+}
+
+function getDateRange() {
+  var startVal = document.getElementById('dateStart').value;
+  var endVal = document.getElementById('dateEnd').value;
+  var start = startVal || ALL_DATES[ALL_DATES.length - 1]; // 最早
+  var end = endVal || ALL_DATES[0]; // 最新
+  if (start > end) { var t = start; start = end; end = t; }
+  var dates = ALL_DATES.filter(function(d) { return d >= start && d <= end; });
+  return dates;
+}
+
+function getAggregatedEmployees(staffNos, dateKeys) {
+  var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
+  var result = {};
+  if (dateKeys.length <= 1) {
+    // 单日期，直接返回当前EMPLOYEES数据
+    staffNos.forEach(function(k) {
+      var e = EMPLOYEES[k];
+      if (e) result[k] = e;
+    });
+    return result;
+  }
+  // 多日期：汇总每个人员在范围内所有日期的数据
+  var allData = {};
+  dateKeys.forEach(function(d) {
+    var dd = ALL_DATE_DATA[d];
+    if (!dd || !dd.employees) return;
+    staffNos.forEach(function(k) {
+      var e = dd.employees[k];
+      if (!e) return;
+      if (!allData[k]) {
+        allData[k] = { staff_nm: e.staff_nm, store_name: e.store_name, store_type: e.store_type, staff_category: e.staff_category, branch: e.branch, filter_group: e.filter_group, radar: {}, dwm: {}, scoreSum: 0, scoreCnt: 0, dim_personal: {}, dim_group_avg: {}, training: '', suspected_frozen: false, _frozenCount: 0 };
+        BIZ_KEYS.forEach(function(bk) { allData[k].dwm[bk] = { day: 0, week: 0, month: 0 }; });
+      }
+      var a = allData[k];
+      // 雷达得分取平均
+      Object.keys(e.radar).forEach(function(dim) {
+        if (a.radar[dim] === undefined) a.radar[dim] = 0;
+        a.radar[dim] += e.radar[dim];
+      });
+      // 业务值取合计
+      BIZ_KEYS.forEach(function(bk) {
+        var dwm = e.dwm ? e.dwm[bk] : null;
+        a.dwm[bk].month += dwm ? dwm.month : 0;
+      });
+      var vals = Object.values(e.radar);
+      a.scoreSum += vals.length ? vals.reduce(function(s,v){return s+v;},0) / vals.length : 0;
+      a.scoreCnt++;
+      // 取最新日期的维度个人值和组均值用于强弱判断
+      if (e.dim_personal) Object.keys(e.dim_personal).forEach(function(dim) { a.dim_personal[dim] = e.dim_personal[dim]; });
+      if (e.dim_group_avg) Object.keys(e.dim_group_avg).forEach(function(dim) { a.dim_group_avg[dim] = e.dim_group_avg[dim]; });
+      if (e.training) a.training = e.training;
+      // 疑似冻结统计
+      if (e.suspected_frozen) a._frozenCount = (a._frozenCount || 0) + 1;
+    });
+  });
+  // 雷达得分取平均 + 疑似冻结判断
+  Object.keys(allData).forEach(function(k) {
+    var a = allData[k];
+    Object.keys(a.radar).forEach(function(dim) {
+      a.radar[dim] = a.radar[dim] / dateKeys.length;
+    });
+    // 多日期中若全部日期都疑似冻结，才标记为疑似冻结
+    a.suspected_frozen = a._frozenCount >= dateKeys.length;
+    delete a._frozenCount;
+  });
+  // 伪装为标准employee格式
+  staffNos.forEach(function(k) {
+    if (allData[k]) {
+      allData[k]._avgScore = allData[k].scoreCnt > 0 ? allData[k].scoreSum / allData[k].scoreCnt : 0;
+      result[k] = allData[k];
+    }
+  });
+  return result;
+}
+
+function switchDetailTab(tab) {
+  window._currentDetailTab = tab;
+  var staffTab = document.getElementById('detailTabStaff');
+  var storeTab = document.getElementById('detailTabStore');
+  if (tab === 'staff') {
+    staffTab.className = 'trend-tab active';
+    storeTab.className = 'trend-tab';
+    drawStaffTable();
+  } else {
+    storeTab.className = 'trend-tab active';
+    staffTab.className = 'trend-tab';
+    drawStoreTable();
+  }
+}
+
+function drawStaffTable() {
+  var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
+  var dateKeys = getDateRange();
+  var isMultiDate = dateKeys.length > 1;
+  var periodLabel = isMultiDate ? '(期间合计)' : '(月)';
+  var filteredNos = getFilteredStaffNos();
+  var aggEmps = getAggregatedEmployees(filteredNos, dateKeys);
+  var sortedNos = filteredNos.map(function(k) {
+    var e = aggEmps[k];
+    if (!e) return { no: k, score: 0 };
+    var avg = e._avgScore !== undefined ? e._avgScore : (Object.values(e.radar).reduce(function(a,b){return a+b;},0) / Math.max(Object.values(e.radar).length, 1));
+    return { no: k, score: avg };
+  });
+  sortedNos.sort(function(a, b) { return b.score - a.score; });
+
+  var tblHtml = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+  tblHtml += '<thead><tr style="background:var(--primary-light);font-weight:600;position:sticky;top:0;">';
+  tblHtml += '<th style="padding:8px 6px;text-align:left;">工号</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:left;">姓名</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:center;">状态</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:left;">门店</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:center;">门店分类</th>';
+  BIZ_KEYS.forEach(function(k) {
+    tblHtml += '<th style="padding:8px 6px;text-align:center;">' + k + periodLabel + '</th>';
+  });
+  tblHtml += '<th style="padding:8px 6px;text-align:center;">综合得分</th>';
+  tblHtml += '</tr></thead><tbody>';
+  var sumCount = 0, sumScore = 0;
+  var bizSums = {};
+  BIZ_KEYS.forEach(function(bk) { bizSums[bk] = 0; });
+  sortedNos.forEach(function(s) {
+    var k = s.no;
+    var e = aggEmps[k];
+    if (!e) return;
+    var avg = e._avgScore !== undefined ? e._avgScore : (Object.values(e.radar).reduce(function(a,b){return a+b;},0) / Math.max(Object.values(e.radar).length, 1));
+    var avgNum = parseFloat(avg.toFixed(1));
+    sumCount++;
+    sumScore += avgNum;
+    BIZ_KEYS.forEach(function(bk) {
+      var v = e.dwm[bk] ? e.dwm[bk].month : 0;
+      bizSums[bk] += v;
+    });
+    var clr = avgNum >= 75 ? '#34a853' : avgNum >= 40 ? '#fbbc04' : '#ea4335';
+    var statusHtml = e.suspected_frozen ?
+      '<span style="background:#fff3cd;color:#856404;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600;border:1px solid #ffc107;">疑似冻结</span>' :
+      '<span style="color:#34a853;font-size:11px;">正常</span>';
+    tblHtml += '<tr style="border-bottom:1px solid #eee;cursor:pointer;" onclick="selectEmployee(\'' + k + '\');">';
+    tblHtml += '<td style="padding:6px;">' + k + '</td>';
+    tblHtml += '<td style="padding:6px;">' + e.staff_nm + '</td>';
+    tblHtml += '<td style="padding:6px;text-align:center;">' + statusHtml + '</td>';
+    tblHtml += '<td style="padding:6px;">' + e.store_name + '</td>';
+    tblHtml += '<td style="padding:6px;text-align:center;">' + e.store_type + '</td>';
+    BIZ_KEYS.forEach(function(bk) {
+      var v = e.dwm[bk] ? e.dwm[bk].month : 0;
+      tblHtml += '<td style="padding:6px;text-align:center;">' + fmtNum(v) + '</td>';
+    });
+    tblHtml += '<td style="padding:6px;text-align:center;font-weight:600;color:' + clr + ';">' + fmtNum(avg) + '</td>';
+    tblHtml += '</tr>';
+  });
+  // 合计行
+  var avgScoreAll = sumCount > 0 ? fmtNum(sumScore / sumCount) : '0';
+  tblHtml += '<tr style="border-top:2px solid var(--primary);background:var(--primary-light);font-weight:700;">';
+  tblHtml += '<td style="padding:8px 6px;">合计</td>';
+  tblHtml += '<td style="padding:8px 6px;">' + sumCount + '人</td>';
+  tblHtml += '<td style="padding:8px 6px;"></td>';
+  tblHtml += '<td style="padding:8px 6px;"></td>';
+  tblHtml += '<td style="padding:8px 6px;"></td>';
+  BIZ_KEYS.forEach(function(bk) {
+    tblHtml += '<td style="padding:8px 6px;text-align:center;">' + fmtNum(bizSums[bk]) + '</td>';
+  });
+  tblHtml += '<td style="padding:8px 6px;text-align:center;font-weight:700;color:var(--primary);">' + fmtNum(avgScoreAll) + '</td>';
+  tblHtml += '</tr>';
+  tblHtml += '</tbody></table>';
+  document.getElementById('groupTable').innerHTML = tblHtml;
+}
+
+function drawStoreTable() {
+  var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
+  var dateKeys = getDateRange();
+  var isMultiDate = dateKeys.length > 1;
+  var periodLabel = isMultiDate ? '(期间合计)' : '(合计)';
+  var staffNos = window._groupBizStaffNos || [];
+  var aggEmps = getAggregatedEmployees(staffNos, dateKeys);
+
+  // 按门店名称汇总
+  var storeMap = {};
+  staffNos.forEach(function(k) {
+    var e = aggEmps[k];
+    if (!e) return;
+    var sn = e.store_name || '未知';
+    if (!storeMap[sn]) {
+      storeMap[sn] = { name: sn, type: e.store_type, branch: e.branch, count: 0, radarSum: {}, dwmSum: {}, scoreSum: 0 };
+    }
+    var s = storeMap[sn];
+    s.count++;
+    var avg = e._avgScore !== undefined ? e._avgScore : (Object.values(e.radar).reduce(function(a,b){return a+b;},0) / Math.max(Object.values(e.radar).length, 1));
+    s.scoreSum += avg;
+    Object.keys(e.radar).forEach(function(dim) {
+      s.radarSum[dim] = (s.radarSum[dim] || 0) + e.radar[dim];
+    });
+    BIZ_KEYS.forEach(function(bk) {
+      var dwm = e.dwm ? e.dwm[bk] : null;
+      var v = dwm ? dwm.month : 0;
+      s.dwmSum[bk] = (s.dwmSum[bk] || 0) + v;
+    });
+  });
+
+  // 转为数组并按综合得分均值降序
+  var stores = Object.values(storeMap);
+  stores.forEach(function(s) {
+    s.avgScore = s.count > 0 ? s.scoreSum / s.count : 0;
+  });
+  stores.sort(function(a, b) { return b.avgScore - a.avgScore; });
+
+  var tblHtml = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+  tblHtml += '<thead><tr style="background:var(--primary-light);font-weight:600;position:sticky;top:0;">';
+  tblHtml += '<th style="padding:8px 6px;text-align:left;">门店</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:center;">门店分类</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:center;">支局</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:center;">人数</th>';
+  BIZ_KEYS.forEach(function(k) {
+    tblHtml += '<th style="padding:8px 6px;text-align:center;">' + k + periodLabel + '</th>';
+  });
+  tblHtml += '<th style="padding:8px 6px;text-align:center;">综合得分(均)</th>';
+  tblHtml += '</tr></thead><tbody>';
+  stores.forEach(function(s) {
+    var clr = s.avgScore >= 75 ? '#34a853' : s.avgScore >= 40 ? '#fbbc04' : '#ea4335';
+    tblHtml += '<tr style="border-bottom:1px solid #eee;">';
+    tblHtml += '<td style="padding:6px;">' + s.name + '</td>';
+    tblHtml += '<td style="padding:6px;text-align:center;">' + s.type + '</td>';
+    tblHtml += '<td style="padding:6px;text-align:center;">' + s.branch + '</td>';
+    tblHtml += '<td style="padding:6px;text-align:center;font-weight:600;">' + s.count + '</td>';
+    BIZ_KEYS.forEach(function(bk) {
+      tblHtml += '<td style="padding:6px;text-align:center;">' + fmtNum(s.dwmSum[bk] || 0) + '</td>';
+    });
+    tblHtml += '<td style="padding:6px;text-align:center;font-weight:600;color:' + clr + ';">' + fmtNum(s.avgScore) + '</td>';
+    tblHtml += '</tr>';
+  });
+  // 合计行
+  var totalCount = 0, totalScoreSum = 0;
+  var totalDwm = {};
+  BIZ_KEYS.forEach(function(bk) { totalDwm[bk] = 0; });
+  stores.forEach(function(s) {
+    totalCount += s.count;
+    totalScoreSum += s.scoreSum;
+    BIZ_KEYS.forEach(function(bk) { totalDwm[bk] += (s.dwmSum[bk] || 0); });
+  });
+  var totalAvgScore = totalCount > 0 ? (totalScoreSum / totalCount) : 0;
+  tblHtml += '<tr style="border-top:2px solid var(--primary);background:var(--primary-light);font-weight:700;">';
+  tblHtml += '<td style="padding:8px 6px;">合计</td>';
+  tblHtml += '<td style="padding:8px 6px;"></td>';
+  tblHtml += '<td style="padding:8px 6px;"></td>';
+  tblHtml += '<td style="padding:8px 6px;text-align:center;">' + totalCount + '</td>';
+  BIZ_KEYS.forEach(function(bk) {
+    tblHtml += '<td style="padding:8px 6px;text-align:center;">' + fmtNum(totalDwm[bk]) + '</td>';
+  });
+  tblHtml += '<td style="padding:8px 6px;text-align:center;font-weight:700;color:var(--primary);">' + fmtNum(totalAvgScore) + '</td>';
+  tblHtml += '</tr>';
+  tblHtml += '</tbody></table>';
+  document.getElementById('groupTable').innerHTML = tblHtml;
+}
+
+function showZeroStaff(key, type) {
+  var staffNos = window._groupBizStaffNos || [];
+  var zeroList = [];
+  var negList = [];
+  staffNos.forEach(function(k) {
+    var e = EMPLOYEES[k];
+    if (!e) return;
+    var dwm = e.dwm ? e.dwm[key] : null;
+    var m = dwm ? dwm.month : 0;
+    if (m === 0 || !dwm) {
+      zeroList.push(e.staff_nm);
+    } else if (m < 0) {
+      negList.push(e.staff_nm);
+    }
+  });
+  var title, content;
+  if (type === 1) {
+    title = key + ' - 产能为负人员';
+    content = negList.length > 0 ? negList.join('、') : '无产能为负人员';
+  } else {
+    title = key + ' - 无产能人员';
+    content = zeroList.length > 0 ? zeroList.join('、') : '全部人员均有产能';
+  }
+  // 弹窗
+  var overlay = document.createElement('div');
+  overlay.id = 'zeroStaffOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:#fff;border-radius:12px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2);';
+  modal.innerHTML = '<h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text);">' + title + '</h3>' +
+    '<p style="margin:0 0 16px 0;font-size:14px;color:var(--text2);line-height:1.8;word-break:break-all;">' + content + '</p>' +
+    '<div style="text-align:right;"><button id="zeroStaffCloseBtn" style="padding:6px 20px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:14px;color:var(--text);">关闭</button></div>';
+  overlay.onclick = function(ev) { if (ev.target === overlay) overlay.remove(); };
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  document.getElementById('zeroStaffCloseBtn').onclick = function() { overlay.remove(); };
+}
+
+function renderTraining(emp) {
+  var box = document.getElementById('trainingBox');
+  var html = '';
+  var radar = emp.radar;
+  var dimP = emp.dim_personal || {};
+
+  // 使用公共函数计算动态组均值
+  var peerNos = window._peerNos || getFilteredStaffNos();
+  var scoreResult = computeRadarScores(emp, peerNos);
+  var dimA = scoreResult.dimAvg;
+  var personalVals = scoreResult.personalVals;
+
+  // 也用动态雷达得分
+  var dynamicRadar = window._dynamicRadarScores || {};
+
+  var strongs = [];
+  var weaks = [];
+  var midRange = [];
+  Object.keys(radar).forEach(function(dim) {
+    var pv = personalVals[dim] !== undefined ? personalVals[dim] : 0;
+    var av = dimA[dim] || 0;
+    var score = dynamicRadar[dim] !== undefined ? dynamicRadar[dim] : radar[dim];
+    if (pv > av) {
+      strongs.push({dim:dim, score:score, pv:pv, av:av});
+    } else if (pv < av) {
+      weaks.push({dim:dim, score:score, pv:pv, av:av});
+    } else {
+      midRange.push({dim:dim, score:score, pv:pv, av:av});
+    }
+  });
+
+  if (strongs.length > 0) {
+    html += '<div style="margin-bottom:12px"><b style="color:#34a853;">优势领域：</b>';
+    strongs.forEach(function(s) { html += '<span class="badge badge-good" style="margin-right:6px">' + s.dim + ' (' + fmtNum(s.pv) + '，均值' + fmtNum(s.av) + ')</span>'; });
+    html += '</div>';
+  }
+  if (weaks.length > 0) {
+    html += '<div style="margin-bottom:12px"><b style="color:#ea4335;">薄弱领域：</b>';
+    weaks.forEach(function(s) {
+      var cls = s.score < 30 ? 'badge-bad' : 'badge-warn';
+      html += '<span class="badge ' + cls + '" style="margin-right:6px">' + s.dim + ' (' + fmtNum(s.pv) + '，均值' + fmtNum(s.av) + ')</span>';
+    });
+    html += '</div>';
+  }
+  if (midRange.length > 0) {
+    html += '<div style="margin-bottom:12px"><b style="color:var(--text);">持平领域：</b>';
+    midRange.forEach(function(s) { html += '<span style="display:inline-block;margin-right:6px;padding:2px 8px;border-radius:4px;font-size:12px;background:#e8f0fe;color:#1a73e8;">' + s.dim + ' (' + fmtNum(s.pv) + ')</span>'; });
+    html += '</div>';
+  }
+
+  html += '<div style="margin-top:8px"><b>针对性培训建议：</b></div>';
+  html += emp.training;
+  box.innerHTML = html;
+}
+
+window.addEventListener('resize', function() {
+  Object.values(charts).forEach(function(c) { if (c) c.resize(); });
+});
+
+function init() {
+  // 日期范围选择器
+  var dsSel = document.getElementById('dateStart');
+  var deSel = document.getElementById('dateEnd');
+  dsSel.innerHTML = '';
+  deSel.innerHTML = '';
+  ALL_DATES.slice().reverse().forEach(function(d) {
+    var label = d.slice(0,4) + '-' + d.slice(4,6) + '-' + d.slice(6);
+    var o1 = document.createElement('option'); o1.value = d; o1.textContent = label; dsSel.appendChild(o1);
+    var o2 = document.createElement('option'); o2.value = d; o2.textContent = label; deSel.appendChild(o2);
+  });
+  // 默认起始日期=最新，截止日期=最新
+  dsSel.value = ALL_DATES[0];
+  deSel.value = ALL_DATES[0];
+
+  // 加载默认日期数据
+  switchDate();
+  // 显示当天日期
+  var today = new Date();
+  var todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+  document.getElementById('headerDate').textContent = todayStr;
+}
+
+init();
+
+// PWA: 注册Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('sw.js').then(function(reg) {
+      console.log('Service Worker registered, scope:', reg.scope);
+    }).catch(function(err) {
+      console.log('Service Worker registration failed:', err);
+    });
+  });
+}
+</script>
+</body>
+</html>
