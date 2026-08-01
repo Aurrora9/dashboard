@@ -668,8 +668,10 @@ function renderGroupDashboard() {
     var staffWithScore = staffNos.map(function(k) {
       var e = EMPLOYEES[k];
       if (!e) return { no: k, score: 0 };
-      var vals = Object.values(e.radar);
-      var avg = vals.length ? vals.reduce(function(a,b){return a+b;},0) / vals.length : 0;
+      var rScore = computeRadarScores(e, staffNos);
+      var avg = 0; var rKeys = Object.keys(rScore.radarScores);
+      rKeys.forEach(function(d) { avg += rScore.radarScores[d]; });
+      avg = rKeys.length ? avg / rKeys.length : 0;
       return { no: k, score: avg };
     });
     staffWithScore.sort(function(a, b) { return b.score - a.score; });
