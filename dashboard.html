@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ҵ������Ǳ���</title>
+<title>业务分析仪表盘</title>
 <!-- PWA -->
 <meta name="theme-color" content="#1a73e8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ҵ�����">
+<meta name="apple-mobile-web-app-title" content="业务分析">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
@@ -76,64 +76,63 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
 </head>
 <body>
 <div class="header">
-  <h1>ҵ������Ǳ���</h1>
+  <h1>业务分析仪表盘</h1>
   <div class="header-info">
     <span style="color:#fff;font-size:14px;" id="headerDate"></span>
-    <span>���ʵ���</span>
+    <span>高邮电信</span>
   </div>
 </div>
 <div class="filters">
   <div>
-    <label>�ŵ�����:</label>
+    <label>门店类型:</label>
     <select id="storeCatFilter">
-      <option value="">ȫ��</option>
+      <option value="">全部</option>
     </select>
   </div>
   <div>
-    <label>��Ա����:</label>
+    <label>人员类型:</label>
     <select id="staffCatFilter">
-      <option value="">ȫ��</option>
+      <option value="">全部</option>
     </select>
   </div>
   <div>
-    <label>֧��:</label>
+    <label>支局:</label>
     <div class="search-select" id="branchSelect">
-      <input type="text" id="branchFilter" placeholder="ȫ��" autocomplete="off">
+      <input type="text" id="branchFilter" placeholder="全部" autocomplete="off">
       <div class="search-select-dropdown" id="branchDropdown"></div>
     </div>
   </div>
   <div>
-    <label>��ʼ����:</label>
+    <label>起始日期:</label>
     <select id="dateStart">
-      <option value="">����</option>
+      <option value="">最早</option>
     </select>
   </div>
   <div>
-    <label>��ֹ����:</label>
+    <label>截止日期:</label>
     <select id="dateEnd">
-      <option value="">����</option>
+      <option value="">最新</option>
     </select>
   </div>
   <div>
-    <label>ѡ����Ա:</label>
+    <label>选择人员:</label>
     <div class="search-select" id="empSelect">
-      <input type="text" id="employeeSelect" placeholder="ȫ��" autocomplete="off">
+      <input type="text" id="employeeSelect" placeholder="全部" autocomplete="off">
       <div class="search-select-dropdown" id="empDropdown"></div>
     </div>
   </div>
   <div>
-    <button id="queryBtn" onclick="doQuery()">��ѯ</button>
+    <button id="queryBtn" onclick="doQuery()">查询</button>
   </div>
 </div>
 <div class="dashboard" id="dashboard">
   <div class="empty-state">
-    <h2>��ѡ����Ա</h2>
-    <p>���Ϸ������б���������ѡ��һλ��Ա�鿴��ϸ����</p>
+    <h2>请选择人员</h2>
+    <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
 <script src="data.js"></script>
 <script>
-
 const ALL_DATES = ["20260731", "20260730", "20260729", "20260728", "20260727", "20260726", "20260725", "20260724", "20260722", "20260630", "20260531", "20260430", "20260331", "20260228", "20260131", "20250830", "20250731", "20250630", "20250531", "20250430", "20250331", "20250228", "20250131"];
 
 let EMPLOYEES = {};
@@ -147,17 +146,13 @@ let currentDate = '20260731';
 function fmtNum(v) { v = parseFloat(v); if (isNaN(v)) return '0'; return v % 1 === 0 ? String(Math.round(v)) : v.toFixed(1); }
 
 let currentStaff = null;
-
 // Helper: get dim_personal value from dwm (FTTR uses dwm.FTTR.month)
 function getDimPersonal(emp, dim) {
-  var DIM_TO_DWM = {'������չ':'����','������չ':'����','FTTR��չ':'FTTR','�ں��ײ�':'�ں��ײ�','�ն˺�Լ':'�ն˺�Լ','���ֲ���':'��Ч����','���׷�չ':'��������','�����׸�':'�����׸�'};
+  var DIM_TO_DWM = {'天翼发展':'天翼','宽带发展':'宽带','FTTR发展':'FTTR','融合套餐':'融合套餐','终端合约':'终端合约','积分产出':'有效积分','高套发展':'新增高套','存量套改':'存量套改'};
   var dwmKey = DIM_TO_DWM[dim];
   if (dwmKey && emp.dwm && emp.dwm[dwmKey]) return emp.dwm[dwmKey].month || 0;
   return 0;
 }
-
-// Helper: get dim_group_avg (computed from peers)
-
 
 function computeRadarAvg(emp) {
   var peers = getFilteredStaffNos();
@@ -169,12 +164,11 @@ function computeRadarAvg(emp) {
 }
 
 function getDimGroupAvg(dim, peerNos) {
-  var DIM_TO_DWM = {'������չ':'����','������չ':'����','FTTR��չ':'FTTR','�ں��ײ�':'�ں��ײ�','�ն˺�Լ':'�ն˺�Լ','���ֲ���':'��Ч����','���׷�չ':'��������','�����׸�':'�����׸�'};
+  var DIM_TO_DWM = {'天翼发展':'天翼','宽带发展':'宽带','FTTR发展':'FTTR','融合套餐':'融合套餐','终端合约':'终端合约','积分产出':'有效积分','高套发展':'新增高套','存量套改':'存量套改'};
   var dwmKey = DIM_TO_DWM[dim];
   var sum = 0, cnt = 0;
   peerNos.forEach(function(k) {
-    var e = EMPLOYEES[k];
-    if (!e) return;
+    var e = EMPLOYEES[k]; if (!e) return;
     var v = 0;
     if (dwmKey && e.dwm && e.dwm[dwmKey]) v = e.dwm[dwmKey].month || 0;
     sum += v; cnt++;
@@ -192,26 +186,26 @@ function switchDate() {
   STORE_CATEGORIES = dd.store_categories;
   STAFF_CATEGORIES = dd.staff_categories;
   STORE_NAMES = dd.store_names;
-  // ��ס��ǰ����ɸѡ����
+  // 记住当前所有筛选条件
   var prevSc = document.getElementById('storeCatFilter').value;
   var prevSf = document.getElementById('staffCatFilter').value;
   var prevBr = document.getElementById('branchFilter')._selectedVal || '';
   var prevStaff = document.getElementById('employeeSelect')._selectedVal || '';
   if (prevStaff && !EMPLOYEES[prevStaff]) prevStaff = '';
   rebuildFilters();
-  // �ָ��ŵ�����
+  // 恢复门店类型
   if (prevSc) document.getElementById('storeCatFilter').value = prevSc;
-  // �ָ���Ա����
+  // 恢复人员类型
   if (prevSf) document.getElementById('staffCatFilter').value = prevSf;
-  // �ָ�֧��
+  // 恢复支局
   if (prevBr) {
     document.getElementById('branchFilter')._selectedVal = prevBr;
     document.getElementById('branchFilter')._displayLabel = prevBr;
     document.getElementById('branchFilter').value = prevBr;
   }
-  // �ָ���Աѡ��
+  // 恢复人员选择
   if (prevStaff && EMPLOYEES[prevStaff]) {
-    var frozenTag = EMPLOYEES[prevStaff].suspected_frozen ? ' [����]' : '';
+    var frozenTag = EMPLOYEES[prevStaff].suspected_frozen ? ' [冻结]' : '';
     document.getElementById('employeeSelect')._selectedVal = prevStaff;
     document.getElementById('employeeSelect')._displayLabel = prevStaff + ' ' + EMPLOYEES[prevStaff].staff_nm + frozenTag;
     document.getElementById('employeeSelect').value = prevStaff + ' ' + EMPLOYEES[prevStaff].staff_nm + frozenTag;
@@ -219,37 +213,37 @@ function switchDate() {
   } else {
     document.getElementById('employeeSelect').value = '';
     document.getElementById('employeeSelect')._selectedVal = '';
-    document.getElementById('dashboard').innerHTML = '<div class="empty-state"><h2>��ѡ����Ա</h2><p>���Ϸ������б�ѡ��һλ��Ա�鿴��ϸ����</p></div>';
+    document.getElementById('dashboard').innerHTML = '<div class="empty-state"><h2>请选择人员</h2><p>从上方下拉列表选择一位人员查看详细分析</p></div>';
   }
 }
 
 function rebuildFilters() {
   var scSel = document.getElementById('storeCatFilter');
   var sfSel = document.getElementById('staffCatFilter');
-  scSel.innerHTML = '<option value="">ȫ��</option>';
-  sfSel.innerHTML = '<option value="">ȫ��</option>';
+  scSel.innerHTML = '<option value="">全部</option>';
+  sfSel.innerHTML = '<option value="">全部</option>';
   STORE_CATEGORIES.forEach(function(s) { var o = document.createElement('option'); o.value=s; o.textContent=s; scSel.appendChild(o); });
   STAFF_CATEGORIES.forEach(function(s) { var o = document.createElement('option'); o.value=s; o.textContent=s; sfSel.appendChild(o); });
-  // ���֧�ֺ���Ա�����
+  // 清空支局和人员输入框
   document.getElementById('branchFilter').value = '';
   document.getElementById('branchFilter')._selectedVal = '';
   document.getElementById('employeeSelect').value = '';
   document.getElementById('employeeSelect')._selectedVal = '';
-  // �洢���ݹ�������
+  // 存储数据供搜索用
   window._branchOptions = [''].concat(BRANCHES);
-  var empItems = [{val:'', label:'ȫ��'}];
+  var empItems = [{val:'', label:'全部'}];
   Object.keys(EMPLOYEES).forEach(function(k) {
     var e = EMPLOYEES[k];
-    var frozenTag = e.suspected_frozen ? ' [����]' : '';
+    var frozenTag = e.suspected_frozen ? ' [冻结]' : '';
     empItems.push({val: k, label: k + ' ' + e.staff_nm + frozenTag});
   });
   window._empOptions = empItems;
 }
 
-// ====== �Զ��������������� ======
+// ====== 自定义可搜索下拉组件 ======
 function selectEmployee(staffNo) {
   var input = document.getElementById('employeeSelect');
-  var frozenTag = EMPLOYEES[staffNo].suspected_frozen ? ' [����]' : '';
+  var frozenTag = EMPLOYEES[staffNo].suspected_frozen ? ' [冻结]' : '';
   input._selectedVal = staffNo;
   input._displayLabel = staffNo + ' ' + EMPLOYEES[staffNo].staff_nm + frozenTag;
   input.value = staffNo + ' ' + EMPLOYEES[staffNo].staff_nm + frozenTag;
@@ -266,12 +260,12 @@ function initSearchSelect(inputId, dropdownId, optionsGetter, onSelect) {
     items.forEach(function(item) {
       var val = item.val || '';
       var label = item.label || item;
-      if (typeof item === 'string') { val = item; label = item || 'ȫ��'; }
+      if (typeof item === 'string') { val = item; label = item || '全部'; }
       if (filter && label.toLowerCase().indexOf(filter.toLowerCase()) === -1) return;
       var isActive = input._selectedVal === val ? ' active' : '';
       html += '<div class="search-select-item' + isActive + '" data-val="' + val + '">' + label + '</div>';
     });
-    if (!html) html = '<div class="search-select-empty">��ƥ��</div>';
+    if (!html) html = '<div class="search-select-empty">无匹配</div>';
     dropdown.innerHTML = html;
   }
 
@@ -301,25 +295,25 @@ function initSearchSelect(inputId, dropdownId, optionsGetter, onSelect) {
   document.addEventListener('click', function(e) {
     if (!input.contains(e.target) && !dropdown.contains(e.target)) {
       dropdown.classList.remove('open');
-      // ʧ��ʱ�ָ���ѡֵ��ʾ
+      // 失焦时恢复已选值显示
       if (input._displayLabel) input.value = input._displayLabel;
     }
   });
 }
 
 function getBranchOptions() {
-  return (window._branchOptions || ['']).map(function(b) { return {val: b, label: b || 'ȫ��'}; });
+  return (window._branchOptions || ['']).map(function(b) { return {val: b, label: b || '全部'}; });
 }
 
 function getEmpOptions() {
-  return window._empOptions || [{val:'', label:'ȫ��'}];
+  return window._empOptions || [{val:'', label:'全部'}];
 }
 
-// �����������ռ�ͬ����Աά��ֵ������min-max��һ���÷ֺ����ֵ
-// ���� { dimVals: {dim: [values]}, radarScores: {dim: score}, dimAvg: {dim: avg}, personalVals: {dim: val} }
+// 公共函数：收集同组人员维度值并计算min-max归一化得分和组均值
+// 返回 { dimVals: {dim: [values]}, radarScores: {dim: score}, dimAvg: {dim: avg}, personalVals: {dim: val} }
 function computeRadarScores(emp, peerNos) {
-  var RADAR_DIMS_LIST = ['������չ','������չ','FTTR��չ','�ں��ײ�','�ն˺�Լ','���ֲ���','���׷�չ','�����׸�'];
-  var DIM_TO_DWM = {'������չ':'����','������չ':'����','FTTR��չ':null,'�ں��ײ�':'�ں��ײ�','�ն˺�Լ':'�ն˺�Լ','���ֲ���':'��Ч����','���׷�չ':'��������','�����׸�':'�����׸�'};
+  var RADAR_DIMS_LIST = ['天翼发展','宽带发展','FTTR发展','融合套餐','终端合约','积分产出','高套发展','存量套改'];
+  var DIM_TO_DWM = {'天翼发展':'天翼','宽带发展':'宽带','FTTR发展':null,'融合套餐':'融合套餐','终端合约':'终端合约','积分产出':'有效积分','高套发展':'新增高套','存量套改':'存量套改'};
   var dateKeys = getDateRange();
   var isMultiDate = dateKeys.length > 1;
   var aggEmps = isMultiDate ? getAggregatedEmployees(peerNos, dateKeys) : null;
@@ -363,15 +357,15 @@ function computeRadarScores(emp, peerNos) {
   return { dimVals: dimVals, radarScores: radarScores, dimAvg: dimAvg, personalVals: personalVals };
 }
 
-// ��ʼ��
+// 初始化
 initSearchSelect('branchFilter', 'branchDropdown', getBranchOptions);
 initSearchSelect('employeeSelect', 'empDropdown', getEmpOptions);
 
 function doQuery() {
-  // �ȸ������ڷ�Χ�л�����
+  // 先根据日期范围切换数据
   var dateKeys = getDateRange();
   if (dateKeys.length > 0) {
-    currentDate = dateKeys[0]; // ʹ����ʼ������Ϊ��ǰ����
+    currentDate = dateKeys[0]; // 使用起始日期作为当前日期
     var dd = ALL_DATE_DATA[currentDate];
     if (dd) {
       EMPLOYEES = dd.employees;
@@ -381,7 +375,7 @@ function doQuery() {
       STAFF_CATEGORIES = dd.staff_categories;
       STORE_NAMES = dd.store_names;
     }
-    // ���ѡ���ض����ڣ�ˢ��ɸѡ����������ѡֵ��
+    // 如果选了特定日期，刷新筛选器（保留已选值）
     var prevSc = document.getElementById('storeCatFilter').value;
     var prevSf = document.getElementById('staffCatFilter').value;
     var prevBr = document.getElementById('branchFilter')._selectedVal || '';
@@ -389,16 +383,16 @@ function doQuery() {
     rebuildFilters();
     if (prevSc) document.getElementById('storeCatFilter').value = prevSc;
     if (prevSf) document.getElementById('staffCatFilter').value = prevSf;
-    // �ָ�֧��
+    // 恢复支局
     if (prevBr) {
       document.getElementById('branchFilter')._selectedVal = prevBr;
       document.getElementById('branchFilter')._displayLabel = prevBr;
       document.getElementById('branchFilter').value = prevBr;
     }
-    // �ָ�Ա��ѡ��
+    // 恢复员工选择
     var empVal = prevEmp;
     if (empVal && EMPLOYEES[empVal]) {
-      var frozenTag = EMPLOYEES[empVal].suspected_frozen ? ' [����]' : '';
+      var frozenTag = EMPLOYEES[empVal].suspected_frozen ? ' [冻结]' : '';
       document.getElementById('employeeSelect')._selectedVal = empVal;
       document.getElementById('employeeSelect')._displayLabel = empVal + ' ' + EMPLOYEES[empVal].staff_nm + frozenTag;
       document.getElementById('employeeSelect').value = empVal + ' ' + EMPLOYEES[empVal].staff_nm + frozenTag;
@@ -412,12 +406,12 @@ function doQuery() {
     currentStaff = staffNo;
     renderDashboard(EMPLOYEES[staffNo], staffNo);
   } else {
-    // Ⱥ����ͼ����ɸѡ��������
+    // 群体视图：按筛选条件汇总
     renderGroupDashboard();
   }
 }
 
-// ���ݵ�ǰɸѡ������ȷ��ĳԱ����"ͬ����Ա"�б������ڶ�̬������
+// 根据当前筛选条件，确定某员工的"同组人员"列表（用于动态排名）
 function getPeerStaffNos(emp) {
   var scFilter = document.getElementById('storeCatFilter').value;
   var sfFilter = document.getElementById('staffCatFilter').value;
@@ -425,22 +419,22 @@ function getPeerStaffNos(emp) {
 
   var peers = Object.keys(EMPLOYEES);
 
-  // �ŵ����ͣ����ѡ���ض����ͣ�ͬ����Ǹ������ڣ�����Ա���Լ����ŵ����ym
+  // 门店类型：如果选了特定类型，同组就是该类型内；否则按员工自己的门店分类ym
   if (scFilter) {
     peers = peers.filter(function(k) { return EMPLOYEES[k].filter_group === scFilter; });
   } else {
     peers = peers.filter(function(k) { return EMPLOYEES[k].filter_group === emp.filter_group; });
   }
 
-  // ��Ա���ͣ����ѡ���ض����ͣ���һ����Сͬ�鷶Χ
+  // 人员类型：如果选了特定类型，进一步缩小同组范围
   if (sfFilter) {
     peers = peers.filter(function(k) { return EMPLOYEES[k].staff_category === sfFilter; });
   } else if (emp.staff_category) {
-    // δѡ��Ա����ʱ��Ĭ�ϰ�Ա���Լ�����Ա���ͷ��飨����ƽ��
-    // ��ǿ��ɸѡ����ע�ͣ������Ĭ�ϰ��ŵ����ym���鲻������Ա���ͣ�ȥ�����else
+    // 未选人员类型时，默认按员工自己的人员类型分组（更公平）
+    // 不强制筛选，但注释：如果想默认按门店分类ym分组不区分人员类型，去掉这个else
   }
 
-  // ֧�֣����ѡ���ض�֧�֣���һ����С
+  // 支局：如果选了特定支局，进一步缩小
   if (brFilter) {
     peers = peers.filter(function(k) { return EMPLOYEES[k].branch === brFilter; });
   }
@@ -448,20 +442,20 @@ function getPeerStaffNos(emp) {
   return peers;
 }
 
-// ��ͬ���ڶ�̬���������;�ֵ
+// 在同组内动态计算排名和均值
 function computeDynamicRanks(emp, peerNos) {
   var RANK_COLS = [
-    {col: '����������', label: '����', dwmKey: '����'},
-    {col: '�¿�������', label: '����', dwmKey: '����'},
-    {col: '�¿���fttr', label: 'FTTR', dwmKey: null},
-    {col: '�¿����ں��ײ�_����', label: '�ں��ײ�', dwmKey: '�ں��ײ�'},
-    {col: '���ն˺�Լ', label: '�ն˺�Լ', dwmKey: '�ն˺�Լ'},
-    {col: '����Ч����', label: '��Ч����', dwmKey: '��Ч����'},
-    {col: '�´�����ֵ��Ч����', label: '������ֵ����', dwmKey: null},
-    {col: '�¿�����Ч����', label: '���˻���', dwmKey: null},
-    {col: '�¿�����������', label: '��������', dwmKey: '��������'},
-    {col: '�´����׸�', label: '�����׸�', dwmKey: '�����׸�'},
-    {col: '��plus��Ա', label: 'Plus��Ա', dwmKey: null}
+    {col: '月新增天翼', label: '天翼', dwmKey: '天翼'},
+    {col: '月竣工宽带', label: '宽带', dwmKey: '宽带'},
+    {col: '月竣工fttr', label: 'FTTR', dwmKey: null},
+    {col: '月竣工融合套餐_折算', label: '融合套餐', dwmKey: '融合套餐'},
+    {col: '月终端合约', label: '终端合约', dwmKey: '终端合约'},
+    {col: '月有效积分', label: '有效积分', dwmKey: '有效积分'},
+    {col: '月存量提值有效积分', label: '存量提值积分', dwmKey: null},
+    {col: '月客运有效积分', label: '客运积分', dwmKey: null},
+    {col: '月竣工新增高套', label: '新增高套', dwmKey: '新增高套'},
+    {col: '月存量套改', label: '存量套改', dwmKey: '存量套改'},
+    {col: '月plus会员', label: 'Plus会员', dwmKey: null}
   ];
 
   var ranks = {};
@@ -470,19 +464,19 @@ function computeDynamicRanks(emp, peerNos) {
   var isMultiDate = dateKeys.length > 1;
   var aggEmps = isMultiDate ? getAggregatedEmployees(peerNos, dateKeys) : null;
 
-  // ȡ��Ա��ͬ������
+  // 取该员工同组数据
   RANK_COLS.forEach(function(rc) {
-    // ��dwmȡ�¶�ֵ����dwmKeyʱ���˵�dim_personal
+    // 从dwm取月度值，无dwmKey时回退到dim_personal
     var getVal = function(e) {
       if (!e) return 0;
       var key = rc.dwmKey;
       if (key && e.dwm && e.dwm[key]) return e.dwm[key].month || 0;
-      // ��dwmKey��ά��ʹ��getDimPersonal
-      if (!key) return getDimPersonal(e, rc.label + '��չ');
+      // 无dwmKey的维度使用getDimPersonal
+      if (!key) return getDimPersonal(e, rc.label + '发展');
       return 0;
     };
 
-    // �ռ�ͬ��������Ա��ֵ
+    // 收集同组所有人员的值
     var vals = [];
     var myVal = getVal(emp);
     peerNos.forEach(function(k) {
@@ -491,7 +485,7 @@ function computeDynamicRanks(emp, peerNos) {
       vals.push(getVal(e));
     });
 
-    // ��������myVal�������+1
+    // 排名：比myVal大的数量+1
     var rank = 1;
     vals.forEach(function(v) { if (v > myVal) rank++; });
     var total = vals.length;
@@ -520,22 +514,22 @@ function renderGroupDashboard() {
   var dash = document.getElementById('dashboard');
 
   if (staffNos.length === 0) {
-    dash.innerHTML = '<div class="empty-state"><h2>��ƥ����Ա</h2><p>�����ɸѡ���������²�ѯ</p></div>';
+    dash.innerHTML = '<div class="empty-state"><h2>无匹配人员</h2><p>请调整筛选条件后重新查询</p></div>';
     return;
   }
 
-  // ����Ⱥ�����
-  var RADAR_DIMS = ['������չ','������չ','FTTR��չ','�ں��ײ�','�ն˺�Լ','���ֲ���','���׷�չ','�����׸�'];
-  var BIZ_KEYS = ['��Ч����','����','����','�ں��ײ�','�ն˺�Լ','��������','�����׸�'];
-  var DIM_TO_DWM = {'������չ':'����','������չ':'����','FTTR��չ':null,'�ں��ײ�':'�ں��ײ�','�ն˺�Լ':'�ն˺�Լ','���ֲ���':'��Ч����','���׷�չ':'��������','�����׸�':'�����׸�'};
+  // 计算群体汇总
+  var RADAR_DIMS = ['天翼发展','宽带发展','FTTR发展','融合套餐','终端合约','积分产出','高套发展','存量套改'];
+  var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
+  var DIM_TO_DWM = {'天翼发展':'天翼','宽带发展':'宽带','FTTR发展':null,'融合套餐':'融合套餐','终端合约':'终端合约','积分产出':'有效积分','高套发展':'新增高套','存量套改':'存量套改'};
 
-  // ������ʱ�þۺ�����
+  // 多日期时用聚合数据
   var dateKeys4Group = getDateRange();
   var isMultiDate4Group = dateKeys4Group.length > 1;
   var aggEmps4Group = isMultiDate4Group ? getAggregatedEmployees(staffNos, dateKeys4Group) : null;
 
-  // ��ά��ƽ���֣���̬min-max��һ����ȡ��ֵ��
-  // ���ռ�������Ա��ά�ȵ�ԭʼֵ
+  // 各维度平均分（动态min-max归一化后取均值）
+  // 先收集所有人员各维度的原始值
   var dimRawVals = {};
   RADAR_DIMS.forEach(function(dim) { dimRawVals[dim] = []; });
   staffNos.forEach(function(k) {
@@ -549,7 +543,7 @@ function renderGroupDashboard() {
       dimRawVals[dim].push(v);
     });
   });
-  // ��ÿ��ά����min-max��һ������ȡ��ֵ
+  // 对每个维度做min-max归一化，再取均值
   var radarAvg = {};
   RADAR_DIMS.forEach(function(dim) {
     var vals = dimRawVals[dim];
@@ -565,7 +559,7 @@ function renderGroupDashboard() {
     radarAvg[dim] = cnt > 0 ? fmtNum(normSum / cnt) : 0;
   });
 
-  // ҵ���ֵ���þۺ����ݣ�
+  // 业务均值（用聚合数据）
   var bizAvg = {};
   BIZ_KEYS.forEach(function(key) {
     var sum = 0, cnt = 0;
@@ -577,7 +571,7 @@ function renderGroupDashboard() {
     bizAvg[key] = cnt > 0 ? fmtNum(sum / cnt) : 0;
   });
 
-  // ǿ���ֲ������ڶ�̬��һ���÷֣�
+  // 强弱分布（基于动态归一化得分）
   var strongCnt = 0, weakCnt = 0, midCnt = 0;
   staffNos.forEach(function(k) {
     var e = aggEmps4Group ? aggEmps4Group[k] : EMPLOYEES[k];
@@ -599,36 +593,36 @@ function renderGroupDashboard() {
     else midCnt++;
   });
 
-  // ����
-  var scFilter = document.getElementById('storeCatFilter').value || 'ȫ��';
-  var sfFilter = document.getElementById('staffCatFilter').value || 'ȫ��';
-  var groupTitle = (scFilter !== 'ȫ��' ? scFilter : '') + (sfFilter !== 'ȫ��' ? sfFilter : '');
-  if (!groupTitle) groupTitle = 'ȫ����Ա';
+  // 标题
+  var scFilter = document.getElementById('storeCatFilter').value || '全部';
+  var sfFilter = document.getElementById('staffCatFilter').value || '全部';
+  var groupTitle = (scFilter !== '全部' ? scFilter : '') + (sfFilter !== '全部' ? sfFilter : '');
+  if (!groupTitle) groupTitle = '全部人员';
 
   dash.innerHTML =
     '<div class="summary-cards">' +
-      '<div class="summary-item"><div class="val">' + staffNos.length + '</div><div class="lbl">' + groupTitle + '����</div></div>' +
-      '<div class="summary-item"><div class="val" style="color:#34a853;">' + strongCnt + '</div><div class="lbl">ǿ����Ա(�ۺ�>=70)</div></div>' +
-      '<div class="summary-item"><div class="val" style="color:#fbbc04;">' + midCnt + '</div><div class="lbl">�е���Ա(50-70)</div></div>' +
-      '<div class="summary-item"><div class="val" style="color:#ea4335;">' + weakCnt + '</div><div class="lbl">������Ա(<50)</div></div>' +
+      '<div class="summary-item"><div class="val">' + staffNos.length + '</div><div class="lbl">' + groupTitle + '人数</div></div>' +
+      '<div class="summary-item"><div class="val" style="color:#34a853;">' + strongCnt + '</div><div class="lbl">强势人员(综合>=70)</div></div>' +
+      '<div class="summary-item"><div class="val" style="color:#fbbc04;">' + midCnt + '</div><div class="lbl">中等人员(50-70)</div></div>' +
+      '<div class="summary-item"><div class="val" style="color:#ea4335;">' + weakCnt + '</div><div class="lbl">弱势人员(<50)</div></div>' +
     '</div>' +
-    '<div class="card"><h3>Ⱥ��ҵ�������״�ͼ(��ֵ)</h3><div id="groupRadarChart" style="height:400px;"></div></div>' +
-    '<div class="card"><h3>Ⱥ��ҵ���ֵ</h3>' +
+    '<div class="card"><h3>群体业务能力雷达图(均值)</h3><div id="groupRadarChart" style="height:400px;"></div></div>' +
+    '<div class="card"><h3>群体业务均值</h3>' +
     '<div id="groupBizTabs" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">' +
-      '<button class="trend-tab active" onclick="switchGroupBiz(0)">��Ч����</button>' +
-      '<button class="trend-tab" onclick="switchGroupBiz(1)">����</button>' +
-      '<button class="trend-tab" onclick="switchGroupBiz(2)">����</button>' +
-      '<button class="trend-tab" onclick="switchGroupBiz(3)">�ں��ײ�</button>' +
-      '<button class="trend-tab" onclick="switchGroupBiz(4)">�ն˺�Լ</button>' +
-      '<button class="trend-tab" onclick="switchGroupBiz(5)">��������</button>' +
-      '<button class="trend-tab" onclick="switchGroupBiz(6)">�����׸�</button>' +
+      '<button class="trend-tab active" onclick="switchGroupBiz(0)">有效积分</button>' +
+      '<button class="trend-tab" onclick="switchGroupBiz(1)">天翼</button>' +
+      '<button class="trend-tab" onclick="switchGroupBiz(2)">宽带</button>' +
+      '<button class="trend-tab" onclick="switchGroupBiz(3)">融合套餐</button>' +
+      '<button class="trend-tab" onclick="switchGroupBiz(4)">终端合约</button>' +
+      '<button class="trend-tab" onclick="switchGroupBiz(5)">新增高套</button>' +
+      '<button class="trend-tab" onclick="switchGroupBiz(6)">存量套改</button>' +
     '</div>' +
     '<div id="groupBizDetail"></div></div>' +
-    '<div class="card card-full"><h3>ǿ�����������ѵ����</h3><div id="groupTrainingBox"></div></div>' +
-    '<div class="card card-full"><h3><span class="trend-tab active" id="detailTabStaff" onclick="switchDetailTab(\'staff\')">��Ա��ϸ</span><span class="trend-tab" id="detailTabStore" onclick="switchDetailTab(\'store\')">�ŵ���ϸ</span><button id="exportBtn" onclick="exportGroupTable()">����Excel</button></h3><div id="groupTable" style="max-height:500px;overflow-y:auto;"></div></div>';
+    '<div class="card card-full"><h3>强弱点分析与培训建议</h3><div id="groupTrainingBox"></div></div>' +
+    '<div class="card card-full"><h3><span class="trend-tab active" id="detailTabStaff" onclick="switchDetailTab(\'staff\')">人员明细</span><span class="trend-tab" id="detailTabStore" onclick="switchDetailTab(\'store\')">门店明细</span><button id="exportBtn" onclick="exportGroupTable()">导出Excel</button></h3><div id="groupTable" style="max-height:500px;overflow-y:auto;"></div></div>';
 
   setTimeout(function() {
-    // �״�ͼ
+    // 雷达图
     var rChart = echarts.init(document.getElementById('groupRadarChart'));
     charts.groupRadar = rChart;
     var rNames = RADAR_DIMS;
@@ -653,7 +647,7 @@ function renderGroupDashboard() {
         type: 'radar',
         data: [{
           value: rValues,
-          name: groupTitle + '��ֵ',
+          name: groupTitle + '均值',
           areaStyle: { color: 'rgba(26,115,232,0.15)' },
           lineStyle: { color: '#1a73e8', width: 2 },
           itemStyle: { color: '#1a73e8' },
@@ -662,7 +656,7 @@ function renderGroupDashboard() {
       }]
     });
 
-    // Ⱥ��ҵ���ֵ����
+    // 群体业务均值详情
     var GROUP_BIZ_COLORS = ['#1a73e8','#34a853','#fbbc04','#ea4335','#9c27b0','#ff6d00','#795548'];
     window._groupBizAvg = bizAvg;
     window._groupBizStaffNos = staffNos;
@@ -670,11 +664,11 @@ function renderGroupDashboard() {
     window._currentGroupBizIdx = 0;
     drawGroupBizDetail();
 
-    // ��Ա��ϸ���񣨰��ۺϵ÷ֽ������У�
+    // 人员明细表格（按综合得分降序排列）
     var staffWithScore = staffNos.map(function(k) {
       var e = EMPLOYEES[k];
       if (!e) return { no: k, score: 0 };
-      var rScore = computeRadarScores(e, staffNos); var vals = Object.values(rScore.radarScores);
+      var vals = Object.values(e.radar);
       var avg = vals.length ? vals.reduce(function(a,b){return a+b;},0) / vals.length : 0;
       return { no: k, score: avg };
     });
@@ -682,19 +676,19 @@ function renderGroupDashboard() {
     window._currentDetailTab = 'staff';
     drawStaffTable();
 
-    // Ⱥ��ǿ�����������ѵ����
+    // 群体强弱点分析与培训建议
     renderGroupTraining(staffNos, radarAvg, bizAvg, groupTitle);
   }, 100);
 }
 
 function renderGroupTraining(staffNos, radarAvg, bizAvg, groupTitle) {
   var box = document.getElementById('groupTrainingBox');
-  var BIZ_KEYS = ['��Ч����','����','����','�ں��ײ�','�ն˺�Լ','��������','�����׸�'];
-  var DIM_TO_BIZ = {'���ֲ���':'��Ч����','������չ':'����','������չ':'����','FTTR��չ':'FTTR','�ں��ײ�':'�ں��ײ�','�ն˺�Լ':'�ն˺�Լ','���׷�չ':'��������','�����׸�':'�����׸�'};
+  var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
+  var DIM_TO_BIZ = {'积分产出':'有效积分','天翼发展':'天翼','宽带发展':'宽带','FTTR发展':'FTTR','融合套餐':'融合套餐','终端合约':'终端合约','高套发展':'新增高套','存量套改':'存量套改'};
   var RADAR_DIMS = Object.keys(radarAvg);
   var html = '';
 
-  // �ø���ֵ vs ���ֵ�ж�ÿ��ά�ȵ�ǿ��/��������
+  // 用个人值 vs 组均值判断每个维度的强势/弱势人数
   var dimStats = {};
   RADAR_DIMS.forEach(function(dim) {
     var bizKey = DIM_TO_BIZ[dim] || '';
@@ -707,7 +701,7 @@ function renderGroupTraining(staffNos, radarAvg, bizAvg, groupTitle) {
       if (pv > av) {
         aboveCount++;
       } else {
-        // ���ھ�ֵ�ģ���ϸ��
+        // 低于均值的，再细分
         if (bizKey) {
           var dwm = e.dwm ? e.dwm[bizKey] : null;
           var m = dwm ? dwm.month : 0;
@@ -722,7 +716,7 @@ function renderGroupTraining(staffNos, radarAvg, bizAvg, groupTitle) {
     dimStats[dim] = {above: aboveCount, belowZero: belowZero, belowNeg: belowNeg, belowLow: belowLow, belowTotal: belowZero + belowNeg + belowLow};
   });
 
-  // ����ά�ȣ����ھ�ֵ���� > ���ھ�ֵ����
+  // 优势维度：高于均值人数 > 低于均值人数
   var strongDims = [];
   var weakDims = [];
   RADAR_DIMS.forEach(function(dim) {
@@ -734,50 +728,50 @@ function renderGroupTraining(staffNos, radarAvg, bizAvg, groupTitle) {
   strongDims.sort(function(a,b){return b.score-a.score;});
   weakDims.sort(function(a,b){return a.score-b.score;});
 
-  // 1. Ⱥ������ά�ȣ�����������ά��ʱ��ʾ��
+  // 1. 群体优势维度（仅在有优势维度时显示）
   if (strongDims.length > 0) {
     html += '<div style="background:#34a85308;border:1px solid #34a85322;border-radius:12px;padding:16px;margin-bottom:16px;">';
-    html += '<div style="font-size:14px;font-weight:600;color:#34a853;margin-bottom:12px;">����ά��</div>';
+    html += '<div style="font-size:14px;font-weight:600;color:#34a853;margin-bottom:12px;">优势维度</div>';
     strongDims.forEach(function(item) {
       var bizKey = DIM_TO_BIZ[item.dim] || '';
       var avg = bizKey && bizAvg[bizKey] ? bizAvg[bizKey] : '';
       html += '<div style="margin-bottom:10px;">';
       html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">';
       html += '<span style="font-size:13px;font-weight:600;color:var(--text);">' + item.dim + '</span>';
-      html += '<span style="background:#34a85318;color:#34a853;padding:1px 6px;border-radius:4px;font-size:11px;">' + fmtNum(item.score) + '��</span>';
-      if (avg) html += '<span style="font-size:11px;color:var(--text2);">Ⱥ���ֵ' + fmtNum(avg) + '</span>';
+      html += '<span style="background:#34a85318;color:#34a853;padding:1px 6px;border-radius:4px;font-size:11px;">' + fmtNum(item.score) + '分</span>';
+      if (avg) html += '<span style="font-size:11px;color:var(--text2);">群体均值' + fmtNum(avg) + '</span>';
       html += '</div>';
-      html += '<div style="font-size:12px;color:var(--text2);">' + item.stats.above + '�˸��ھ�ֵ������������̣�����Ϊ��˴���������Ա</div>';
+      html += '<div style="font-size:12px;color:var(--text2);">' + item.stats.above + '人高于均值，建议持续巩固，可作为标杆带动其他人员</div>';
       html += '</div>';
     });
     html += '</div>';
   }
 
-  // 2. ����ά������ѵ���飨�ϲ�Ϊһ�����飩
+  // 2. 弱势维度与培训建议（合并为一个区块）
   if (weakDims.length > 0) {
     html += '<div style="background:#ea433508;border:1px solid #ea433522;border-radius:12px;padding:16px;">';
-    html += '<div style="font-size:14px;font-weight:600;color:#ea4335;margin-bottom:12px;">����ά������ѵ����</div>';
+    html += '<div style="font-size:14px;font-weight:600;color:#ea4335;margin-bottom:12px;">弱势维度与培训建议</div>';
     weakDims.forEach(function(item) {
       var bizKey = DIM_TO_BIZ[item.dim] || '';
       var avg = bizKey && bizAvg[bizKey] ? bizAvg[bizKey] : '';
-      var level = item.score < 30 ? '���ز���' : '�д�����';
+      var level = item.score < 30 ? '严重不足' : '有待提升';
       var levelClr = item.score < 30 ? '#ea4335' : '#fbbc04';
       var tips = getGroupTrainingTip(item.dim, item.score);
 
       html += '<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">';
       html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">';
       html += '<span style="font-size:13px;font-weight:600;color:var(--text);">' + item.dim + '</span>';
-      html += '<span style="background:' + levelClr + '18;color:' + levelClr + ';padding:1px 6px;border-radius:4px;font-size:11px;">' + level + ' ' + fmtNum(item.score) + '��</span>';
-      if (avg) html += '<span style="font-size:11px;color:var(--text2);">Ⱥ���ֵ' + fmtNum(avg) + '</span>';
+      html += '<span style="background:' + levelClr + '18;color:' + levelClr + ';padding:1px 6px;border-radius:4px;font-size:11px;">' + level + ' ' + fmtNum(item.score) + '分</span>';
+      if (avg) html += '<span style="font-size:11px;color:var(--text2);">群体均值' + fmtNum(avg) + '</span>';
       html += '</div>';
       html += '<div style="font-size:12px;color:var(--text2);line-height:1.6;">';
-      html += item.stats.above + '�˸��ھ�ֵ��' + item.stats.belowTotal + '�˵��ھ�ֵ';
+      html += item.stats.above + '人高于均值、' + item.stats.belowTotal + '人低于均值';
       if (item.stats.belowTotal > 0) {
         var belowParts = [];
-        if (item.stats.belowLow > 0) belowParts.push(item.stats.belowLow + '���в��������ھ�ֵ');
-        if (item.stats.belowZero > 0) belowParts.push('<span style="color:#ea4335;">' + item.stats.belowZero + '���޲���</span>');
-        if (item.stats.belowNeg > 0) belowParts.push('<span style="color:#fbbc04;">' + item.stats.belowNeg + '�˲���Ϊ��</span>');
-        if (belowParts.length) html += '��' + belowParts.join('��') + '��';
+        if (item.stats.belowLow > 0) belowParts.push(item.stats.belowLow + '人有产出但低于均值');
+        if (item.stats.belowZero > 0) belowParts.push('<span style="color:#ea4335;">' + item.stats.belowZero + '人无产能</span>');
+        if (item.stats.belowNeg > 0) belowParts.push('<span style="color:#fbbc04;">' + item.stats.belowNeg + '人产能为负</span>');
+        if (belowParts.length) html += '（' + belowParts.join('、') + '）';
       }
       html += '</div>';
       html += '<div style="margin-top:6px;font-size:12px;color:var(--text2);line-height:1.7;padding-left:8px;border-left:3px solid #ff6d0033;">' + tips + '</div>';
@@ -793,35 +787,35 @@ function renderGroupTraining(staffNos, radarAvg, bizAvg, groupTitle) {
 
 function getGroupTrainingTip(dim, score) {
   var tips = {
-    '���ֲ���': '������ֲ���ƫ�ͣ������ǿ�ײ�����������ѵ�����������ʺ�ת���ʣ��ص��ע�ͻ�����Ա�����ۻ����Ͳ�Ʒ��Ϥ�ȡ�',
-    '������չ': '��������ƫ����������֯�����ײ�������ѵ��ǿ����Ʒ�ԱȻ������������ۿ����ʺ������Ƽ���ʶ��',
-    '������չ': '������չ���㣬�����ǿ�����ں��ײ���ѵ������װάЭͬ������Ӫ����ʶ����ϴ����������������ƽ���',
-    'FTTR��չ': 'FTTR��չƫ���������ǿFTTR��Ʒ��ʾ��ѵ������������Ӫ����������Ͽ�����װ�ʹ������ٳ��������Ƽ���',
-    '�ں��ײ�': '�ں��ײͷ�չ���㣬�����ǿ�ں��ײ�������ѵ��������ת�������Ƽ���ʶ��ǿ���ں��ײ����ƻ�����',
-    '�ն˺�Լ': '�ն˺�Լƫ���������ǿ�ն˺�Լ��Ʒ��ѵ��������Լ���������Ƽ����������5G������������Ӫ����',
-    '���׷�չ': '���׷�չ���㣬�����ǿ���ײ�Ʒ��ѵ�����������Ƽ�������������������Ͽͻ�����ˮƽ��׼�Ƽ���',
-    '�����׸�': '�����׸�ƫ���������ǿ������Ӫ��ѵ�����������û������͵�������������ǿ����׼Ӫ��������������ʶ��'
+    '积分产出': '整体积分产出偏低，建议加强套餐捆绑销售培训，提升开口率和转化率，重点关注低积分人员的销售话术和产品熟悉度。',
+    '天翼发展': '天翼新增偏弱，建议组织天翼套餐卖点培训，强化竞品对比话术，提升销售开口率和主动推荐意识。',
+    '宽带发展': '宽带发展不足，建议加强宽带融合套餐培训，提升装维协同和主动营销意识，结合存量宽带提速升级推进。',
+    'FTTR发展': 'FTTR发展偏弱，建议加强FTTR产品演示培训，提升场景化营销能力，结合宽带新装和存量提速场景主动推荐。',
+    '融合套餐': '融合套餐发展不足，建议加强融合套餐卖点培训，提升单转融主动推荐意识，强化融合套餐优势话术。',
+    '终端合约': '终端合约偏弱，建议加强终端合约产品培训，提升合约购机场景推荐能力，结合5G换机需求主动营销。',
+    '高套发展': '高套发展不足，建议加强高套产品培训，提升档次推荐和升级引导能力，结合客户消费水平精准推荐。',
+    '存量套改': '存量套改偏弱，建议加强存量经营培训，提升到期用户挽留和低套升档能力，强化精准营销和主动触达意识。'
   };
-  return tips[dim] || '�����ǿ������ר����ѵ����������ҵ��������';
+  return tips[dim] || '建议加强该领域专项培训，提升整体业务能力。';
 }
 
 function renderDashboard(emp, staffNo) {
   var dash = document.getElementById('dashboard');
 
-  // ������ʱ�þۺ������������������
+  // 多日期时用聚合数据替代单日期数据
   var dateKeys = getDateRange();
   if (dateKeys.length > 1) {
     var aggEmps = getAggregatedEmployees([staffNo], dateKeys);
     if (aggEmps[staffNo]) emp = aggEmps[staffNo];
   }
 
-  // ��̬����ͬ�����������ݵ�ǰɸѡ����ȷ��������Χ
+  // 动态计算同组排名：根据当前筛选条件确定排名范围
   var peerNos = getPeerStaffNos(emp);
   window._peerNos = peerNos;
   var dynamicRank = computeDynamicRanks(emp, peerNos);
   var sameType = dynamicRank.peerCount;
 
-  // �ù����������㶯̬�״�÷ֺ����ֵ
+  // 用公共函数计算动态雷达得分和组均值
   var scoreResult = computeRadarScores(emp, peerNos);
   var dynamicRadarScores = scoreResult.radarScores;
   var dimVals4Score = scoreResult.dimVals;
@@ -829,21 +823,21 @@ function renderDashboard(emp, staffNo) {
   var dimA = scoreResult.dimAvg;
 
   var avgScore = 0;
-  var RADAR_DIMS_LIST = ['������չ','������չ','FTTR��չ','�ں��ײ�','�ն˺�Լ','���ֲ���','���׷�չ','�����׸�'];
+  var RADAR_DIMS_LIST = ['天翼发展','宽带发展','FTTR发展','融合套餐','终端合约','积分产出','高套发展','存量套改'];
   RADAR_DIMS_LIST.forEach(function(dim) { avgScore += dynamicRadarScores[dim]; });
   avgScore = RADAR_DIMS_LIST.length > 0 ? fmtNum(avgScore / RADAR_DIMS_LIST.length) : '0';
 
-  // ����������Χ����
+  // 生成排名范围描述
   var scFilter = document.getElementById('storeCatFilter').value;
   var sfFilter = document.getElementById('staffCatFilter').value;
   var rankScopeDesc = [];
   if (scFilter) rankScopeDesc.push(scFilter);
   else if (emp.filter_group) rankScopeDesc.push(emp.filter_group);
   if (sfFilter) rankScopeDesc.push(sfFilter);
-  if (!rankScopeDesc.length) rankScopeDesc.push(emp.store_type || emp.filter_group || 'ȫ��');
+  if (!rankScopeDesc.length) rankScopeDesc.push(emp.store_type || emp.filter_group || '全部');
   var rankLabel = rankScopeDesc.join(' ');
 
-  // �洢��̬�״�÷ֹ������ʹ��
+  // 存储动态雷达得分供子组件使用
   window._dynamicRadarScores = dynamicRadarScores;
 
   /* dim_personal removed */
@@ -856,7 +850,7 @@ function renderDashboard(emp, staffNo) {
     else if (pv < av) weakCount++;
   });
 
-  // �洢��̬�����������ʹ��
+  // 存储动态排名供子组件使用
   window._dynamicRank = dynamicRank;
   window._rankLabel = rankLabel;
 
@@ -864,43 +858,43 @@ function renderDashboard(emp, staffNo) {
   if (emp.suspected_frozen) {
     frozenBanner = '<div style="grid-column:1/-1;background:#fff3cd;border:1px solid #ffc107;border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:12px;">' +
       '<span style="font-size:22px;color:#856404;">&#9888;</span>' +
-      '<div><div style="font-weight:600;color:#856404;font-size:14px;">��Ա״̬�쳣��ʾ</div>' +
-      '<div style="font-size:13px;color:#856404;margin-top:2px;">����Ա��������ҵ�����ݾ�Ϊ0�������Ѷ��ᡢ��ְ���ŵ��ѱյ�/���������ݽ����ο���</div></div></div>';
+      '<div><div style="font-weight:600;color:#856404;font-size:14px;">人员状态异常提示</div>' +
+      '<div style="font-size:13px;color:#856404;margin-top:2px;">该人员当月所有业务数据均为0，可能已冻结、离职或门店已闭店/改名，数据仅供参考。</div></div></div>';
   }
 
   dash.innerHTML =
     frozenBanner +
     '<div class="summary-cards">' +
       '<div class="summary-item"><div class="val">' + emp.staff_nm + '</div><div class="lbl">' + emp.store_name + (emp.staff_category ? ' | ' + emp.staff_category : '') + '</div></div>' +
-      '<div class="summary-item"><div class="val">' + rankLabel + '</div><div class="lbl">������Χ | ͬ��' + sameType + '��</div></div>' +
-      '<div class="summary-item"><div class="val">' + fmtNum(avgScore) + '</div><div class="lbl">�ۺϵ÷�</div></div>' +
-      '<div class="summary-item"><div class="val">' + strongCount + 'ǿ / ' + weakCount + '��</div><div class="lbl">ǿ����ά����</div></div>' +
+      '<div class="summary-item"><div class="val">' + rankLabel + '</div><div class="lbl">排名范围 | 同组' + sameType + '人</div></div>' +
+      '<div class="summary-item"><div class="val">' + fmtNum(avgScore) + '</div><div class="lbl">综合得分</div></div>' +
+      '<div class="summary-item"><div class="val">' + strongCount + '强 / ' + weakCount + '弱</div><div class="lbl">强弱点维度数</div></div>' +
     '</div>' +
-    '<div class="card"><h3>ҵ�������״�ͼ</h3><div id="radarChart" style="height:360px;"></div></div>' +
-    '<div class="card"><h3>ͬ�������Ա�</h3><div id="rankChart" style="height:360px;"></div></div>' +
-    '<div class="card"><h3>ҵ���������</h3>' +
+    '<div class="card"><h3>业务能力雷达图</h3><div id="radarChart" style="height:360px;"></div></div>' +
+    '<div class="card"><h3>同组排名对比</h3><div id="rankChart" style="height:360px;"></div></div>' +
+    '<div class="card"><h3>业务详情分析</h3>' +
     '<div id="bizTabs" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">' +
-      '<button class="trend-tab active" onclick="switchBiz(0)">��Ч����</button>' +
-      '<button class="trend-tab" onclick="switchBiz(1)">����</button>' +
-      '<button class="trend-tab" onclick="switchBiz(2)">����</button>' +
-      '<button class="trend-tab" onclick="switchBiz(3)">�ں��ײ�</button>' +
-      '<button class="trend-tab" onclick="switchBiz(4)">�ն˺�Լ</button>' +
-      '<button class="trend-tab" onclick="switchBiz(5)">��������</button>' +
-      '<button class="trend-tab" onclick="switchBiz(6)">�����׸�</button>' +
+      '<button class="trend-tab active" onclick="switchBiz(0)">有效积分</button>' +
+      '<button class="trend-tab" onclick="switchBiz(1)">天翼</button>' +
+      '<button class="trend-tab" onclick="switchBiz(2)">宽带</button>' +
+      '<button class="trend-tab" onclick="switchBiz(3)">融合套餐</button>' +
+      '<button class="trend-tab" onclick="switchBiz(4)">终端合约</button>' +
+      '<button class="trend-tab" onclick="switchBiz(5)">新增高套</button>' +
+      '<button class="trend-tab" onclick="switchBiz(6)">存量套改</button>' +
     '</div>' +
     '<div id="bizDetail"></div></div>' +
-    '<div class="card"><h3>�����Ʒ���ͼ</h3>' +
+    '<div class="card"><h3>月趋势分析图</h3>' +
     '<div id="trendTabs" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">' +
-      '<button class="trend-tab active" onclick="switchTrend(0)">��Ч����</button>' +
-      '<button class="trend-tab" onclick="switchTrend(1)">����</button>' +
-      '<button class="trend-tab" onclick="switchTrend(2)">����</button>' +
-      '<button class="trend-tab" onclick="switchTrend(3)">�ں��ײ�</button>' +
-      '<button class="trend-tab" onclick="switchTrend(4)">�ն˺�Լ</button>' +
-      '<button class="trend-tab" onclick="switchTrend(5)">��������</button>' +
-      '<button class="trend-tab" onclick="switchTrend(6)">�����׸�</button>' +
+      '<button class="trend-tab active" onclick="switchTrend(0)">有效积分</button>' +
+      '<button class="trend-tab" onclick="switchTrend(1)">天翼</button>' +
+      '<button class="trend-tab" onclick="switchTrend(2)">宽带</button>' +
+      '<button class="trend-tab" onclick="switchTrend(3)">融合套餐</button>' +
+      '<button class="trend-tab" onclick="switchTrend(4)">终端合约</button>' +
+      '<button class="trend-tab" onclick="switchTrend(5)">新增高套</button>' +
+      '<button class="trend-tab" onclick="switchTrend(6)">存量套改</button>' +
     '</div>' +
     '<div id="trendChart" style="height:360px;"></div></div>' +
-    '<div class="card card-full"><h3>ǿ�����������ѵ����</h3><div class="training-box" id="trainingBox"></div></div>';
+    '<div class="card card-full"><h3>强弱点分析与培训建议</h3><div class="training-box" id="trainingBox"></div></div>';
 
   setTimeout(function() {
     renderRadar(emp);
@@ -912,7 +906,7 @@ function renderDashboard(emp, staffNo) {
 }
 
 function renderRadar(emp) {
-  // ʹ�ù������������״�÷�
+  // 使用公共函数计算雷达得分
   var peerNos = window._peerNos || getFilteredStaffNos();
   var scoreResult = computeRadarScores(emp, peerNos);
   var dynamicRadar = scoreResult.radarScores;
@@ -961,11 +955,11 @@ function renderRanks(emp) {
   var labels = Object.keys(dynRank.ranks);
   var html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
   html += '<thead><tr style="background:var(--primary-light);font-weight:600;">';
-  html += '<th style="padding:8px 6px;text-align:left;">ָ��</th>';
-  html += '<th style="padding:8px 6px;text-align:center;">����</th>';
-  html += '<th style="padding:8px 6px;text-align:center;">����ֵ</th>';
-  html += '<th style="padding:8px 6px;text-align:center;">���ֵ</th>';
-  html += '<th style="padding:8px 6px;text-align:left;width:40%;">λ��</th>';
+  html += '<th style="padding:8px 6px;text-align:left;">指标</th>';
+  html += '<th style="padding:8px 6px;text-align:center;">排名</th>';
+  html += '<th style="padding:8px 6px;text-align:center;">个人值</th>';
+  html += '<th style="padding:8px 6px;text-align:center;">组均值</th>';
+  html += '<th style="padding:8px 6px;text-align:left;width:40%;">位置</th>';
   html += '</tr></thead><tbody>';
   labels.forEach(function(l) {
     var r = dynRank.ranks[l];
@@ -984,7 +978,7 @@ function renderRanks(emp) {
   container.innerHTML = html;
 }
 
-var BIZ_KEYS = ['��Ч����','����','����','�ں��ײ�','�ն˺�Լ','��������','�����׸�'];
+var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
 var BIZ_COLORS = ['#1a73e8','#34a853','#fbbc04','#ea4335','#9c27b0','#ff6d00','#795548'];
 var currentBizIdx = 0;
 
@@ -995,7 +989,7 @@ function switchBiz(idx) {
     tabs[i].className = i === idx ? 'trend-tab active' : 'trend-tab';
   }
   drawBizDetail();
-  // ͬ������ͼ
+  // 同步趋势图
   currentTrendIdx = idx;
   var ttabs = document.querySelectorAll('#trendTabs .trend-tab');
   for (var i = 0; i < ttabs.length; i++) {
@@ -1013,13 +1007,13 @@ function drawBizDetail() {
   var dwm = emp.dwm[key] || {day:0, week:0, month:0};
   var d = dwm.day, w = dwm.week, m = dwm.month;
 
-  // ͬ���ֵ��������ʹ�ö�̬������
+  // 同组均值与排名（使用动态排名）
   var dynRank = window._dynamicRank;
   var groupAvg = dynRank ? (dynRank.groupAvg[key] || 0) : 0;
   var rankInfo = dynRank ? dynRank.ranks[key] : null;
   var vsAvg = groupAvg > 0 ? ((m - groupAvg) / groupAvg * 100) : 0;
 
-  // ͬ�Ȼ���
+  // 同比环比
   var my = emp.mom_yoy ? emp.mom_yoy[key] : null;
   var momVal = my ? my[0] : 0;
   var yoyVal = my ? my[3] : 0;
@@ -1037,83 +1031,83 @@ function drawBizDetail() {
   var html = '';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px;">';
 
-  // === ���У�����ָ���Ƭ ===
+  // === 左列：核心指标大卡片 ===
   html += '<div style="background:linear-gradient(135deg,' + color + '14,' + color + '08);border-radius:12px;padding:20px;text-align:center;border:1px solid ' + color + '22;display:flex;flex-direction:column;justify-content:center;">';
-  html += '<div style="font-size:12px;color:var(--text2);margin-bottom:6px;">�����ۼ�</div>';
+  html += '<div style="font-size:12px;color:var(--text2);margin-bottom:6px;">本月累计</div>';
   html += '<div style="font-size:42px;font-weight:800;color:' + color + ';line-height:1.1;">' + fmtNum(m) + '</div>';
   html += '<div style="margin-top:10px;display:flex;justify-content:center;gap:16px;font-size:12px;">';
   if (rankInfo) {
     var pct = rankInfo.total > 0 ? ((rankInfo.total - rankInfo.rank + 1) / rankInfo.total * 100) : 0;
     var rClr = pct >= 70 ? '#34a853' : pct >= 40 ? '#fbbc04' : '#ea4335';
-    html += '<span style="background:' + rClr + '18;color:' + rClr + ';padding:2px 8px;border-radius:10px;font-weight:600;">���� ' + rankInfo.rank + '/' + rankInfo.total + '</span>';
+    html += '<span style="background:' + rClr + '18;color:' + rClr + ';padding:2px 8px;border-radius:10px;font-weight:600;">排名 ' + rankInfo.rank + '/' + rankInfo.total + '</span>';
   }
   if (groupAvg > 0) {
-    html += '<span style="background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:10px;">��ֵ ' + fmtNum(groupAvg) + '</span>';
+    html += '<span style="background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:10px;">均值 ' + fmtNum(groupAvg) + '</span>';
   }
   html += '</div>';
   html += '</div>';
 
-  // === ���У����� + ͬ�� ===
+  // === 中列：环比 + 同比 ===
   html += '<div style="display:flex;flex-direction:column;gap:12px;">';
-  // ����
+  // 环比
   html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;flex:1;display:flex;flex-direction:column;justify-content:center;">';
-  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:4px;">���ȣ������£�</div>';
+  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:4px;">环比（较上月）</div>';
   if (hasMom) {
     html += '<div style="display:flex;align-items:baseline;gap:8px;">';
     html += '<span style="font-size:24px;font-weight:700;">' + fmtPct(momVal) + '</span>';
     html += '</div>';
-    html += '<div style="font-size:11px;color:var(--text2);margin-top:4px;">���� ' + fmtNum(momPrev) + ' �� ���� ' + fmtNum(m) + '</div>';
+    html += '<div style="font-size:11px;color:var(--text2);margin-top:4px;">上月 ' + fmtNum(momPrev) + ' → 本月 ' + fmtNum(m) + '</div>';
   } else {
-    html += '<div style="font-size:16px;color:var(--text2);margin-top:4px;">��������</div>';
+    html += '<div style="font-size:16px;color:var(--text2);margin-top:4px;">暂无数据</div>';
   }
   html += '</div>';
-  // ͬ��
+  // 同比
   html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;flex:1;display:flex;flex-direction:column;justify-content:center;">';
-  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:4px;">ͬ�ȣ���ȥ��ͬ�ڣ�</div>';
+  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:4px;">同比（较去年同期）</div>';
   if (hasYoy) {
     html += '<div style="display:flex;align-items:baseline;gap:8px;">';
     html += '<span style="font-size:24px;font-weight:700;">' + fmtPct(yoyVal) + '</span>';
     html += '</div>';
-    html += '<div style="font-size:11px;color:var(--text2);margin-top:4px;">ͬ�� ' + fmtNum(yoyPrev) + ' �� ���� ' + fmtNum(m) + '</div>';
+    html += '<div style="font-size:11px;color:var(--text2);margin-top:4px;">同期 ' + fmtNum(yoyPrev) + ' → 本月 ' + fmtNum(m) + '</div>';
   } else {
-    html += '<div style="font-size:16px;color:var(--text2);margin-top:4px;">��������</div>';
+    html += '<div style="font-size:16px;color:var(--text2);margin-top:4px;">暂无数据</div>';
   }
   html += '</div>';
   html += '</div>';
 
-  // === ���У���/��/�½��� ===
+  // === 右列：日/周/月进度 ===
   html += '<div style="display:flex;flex-direction:column;gap:10px;">';
 
-  // ����
+  // 当日
   var dayPct = m > 0 ? (d / m * 100) : 0;
   html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;justify-content:center;">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
-  html += '<span style="font-size:12px;color:var(--text2);">�������</span>';
+  html += '<span style="font-size:12px;color:var(--text2);">当日完成</span>';
   html += '<span style="font-size:16px;font-weight:700;">' + fmtNum(d) + '</span>';
   html += '</div>';
   html += '<div style="height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;">';
   html += '<div style="height:100%;width:' + Math.min(dayPct, 100) + '%;background:' + color + ';border-radius:3px;opacity:0.5;transition:width 0.5s;"></div>';
   html += '</div>';
-  html += '<div style="font-size:11px;color:var(--text2);margin-top:3px;">ռ���ۼ� ' + dayPct.toFixed(1) + '%</div>';
+  html += '<div style="font-size:11px;color:var(--text2);margin-top:3px;">占月累计 ' + dayPct.toFixed(1) + '%</div>';
   html += '</div>';
 
-  // ����
+  // 本周
   var weekPct = m > 0 ? (w / m * 100) : 0;
   html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;justify-content:center;">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
-  html += '<span style="font-size:12px;color:var(--text2);">�����ۼ�</span>';
+  html += '<span style="font-size:12px;color:var(--text2);">本周累计</span>';
   html += '<span style="font-size:16px;font-weight:700;">' + fmtNum(w) + '</span>';
   html += '</div>';
   html += '<div style="height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;">';
   html += '<div style="height:100%;width:' + Math.min(weekPct, 100) + '%;background:' + color + ';border-radius:3px;opacity:0.7;transition:width 0.5s;"></div>';
   html += '</div>';
-  html += '<div style="font-size:11px;color:var(--text2);margin-top:3px;">ռ���ۼ� ' + weekPct.toFixed(1) + '%</div>';
+  html += '<div style="font-size:11px;color:var(--text2);margin-top:3px;">占月累计 ' + weekPct.toFixed(1) + '%</div>';
   html += '</div>';
 
-  // ���£���׼����
+  // 本月（基准条）
   html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;justify-content:center;">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
-  html += '<span style="font-size:12px;color:var(--text2);">�����ۼ�</span>';
+  html += '<span style="font-size:12px;color:var(--text2);">本月累计</span>';
   html += '<span style="font-size:16px;font-weight:700;">' + fmtNum(m) + '</span>';
   html += '</div>';
   html += '<div style="height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;">';
@@ -1143,13 +1137,13 @@ function renderDWM(emp) {
 }
 
 var TREND_CONFIGS = [
-  { key: '���ֲ���', label: '����Ч��������', color: '#1a73e8' },
-  { key: '������չ', label: '����������', color: '#34a853' },
-  { key: '������չ', label: '�¿�������', color: '#fbbc04' },
-  { key: '�ں��ײ�', label: '���ں��ײ�����', color: '#ea4335' },
-  { key: '�ն˺�Լ', label: '���ն˺�Լ����', color: '#9c27b0' },
-  { key: '���׷�չ', label: '��������������', color: '#ff6d00' },
-  { key: '�����׸�', label: '�´����׸�����', color: '#795548' }
+  { key: '积分产出', label: '月有效积分趋势', color: '#1a73e8' },
+  { key: '天翼发展', label: '月天翼趋势', color: '#34a853' },
+  { key: '宽带发展', label: '月宽带趋势', color: '#fbbc04' },
+  { key: '融合套餐', label: '月融合套餐趋势', color: '#ea4335' },
+  { key: '终端合约', label: '月终端合约趋势', color: '#9c27b0' },
+  { key: '高套发展', label: '月新增高套趋势', color: '#ff6d00' },
+  { key: '存量套改', label: '月存量套改趋势', color: '#795548' }
 ];
 var currentTrendIdx = 0;
 
@@ -1160,7 +1154,7 @@ function switchTrend(idx) {
     ttabs[i].className = i === idx ? 'trend-tab active' : 'trend-tab';
   }
   drawTrend();
-  // ͬ��ҵ������
+  // 同步业务详情
   currentBizIdx = idx;
   var btabs = document.querySelectorAll('#bizTabs .trend-tab');
   for (var i = 0; i < btabs.length; i++) {
@@ -1178,11 +1172,11 @@ function drawTrend() {
   charts.trend = chart;
   if (!trend || !trend.dates || trend.dates.length < 1) {
     chart.setOption({
-      title: { text: '���۶������ݺ�ɲ鿴����', left: 'center', top: 'center', textStyle: { color: '#9e9e9e', fontSize: 14 } }
+      title: { text: '积累多天数据后可查看趋势', left: 'center', top: 'center', textStyle: { color: '#9e9e9e', fontSize: 14 } }
     });
     return;
   }
-  // �������ݣ�1��~��ǰ�·ݣ��Ǳ������ݣ�1��~12��������ʾ
+  // 本年数据：1月~当前月份；非本年数据：1月~12月完整显示
   var dateYear = currentDate ? parseInt(currentDate.substring(0,4)) : 0;
   var realYear = new Date().getFullYear();
   var curYear = currentDate ? currentDate.substring(2,4) : '';
@@ -1190,14 +1184,14 @@ function drawTrend() {
   var allMonths = [];
   var monthData = {};
   for (var m = 1; m <= endMonth; m++) {
-    var label = curYear + '��' + m + '��';
+    var label = curYear + '年' + m + '月';
     allMonths.push(label);
     monthData[label] = null;
   }
   var cfg = TREND_CONFIGS[currentTrendIdx];
   var allData = trend[cfg.key] || [];
-  // �������ݵ��·�����
-  var curYearPrefix = curYear + '��';
+  // 将有数据的月份填入
+  var curYearPrefix = curYear + '年';
   for (var i = 0; i < trend.dates.length; i++) {
     if (trend.dates[i].indexOf(curYearPrefix) === 0) {
       monthData[trend.dates[i]] = allData[i];
@@ -1246,14 +1240,14 @@ function switchGroupBiz(idx) {
 
 function drawGroupBizDetail() {
   var idx = window._currentGroupBizIdx || 0;
-  var BIZ_KEYS = ['��Ч����','����','����','�ں��ײ�','�ն˺�Լ','��������','�����׸�'];
+  var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
   var BIZ_COLORS = window._groupBizColors;
   var key = BIZ_KEYS[idx];
   var color = BIZ_COLORS[idx];
   var staffNos = window._groupBizStaffNos || [];
   var bizAvg = window._groupBizAvg || {};
 
-  // �����ά�ȵ�ͳ��ֵ
+  // 计算该维度的统计值
   var vals = [];
   var zeroCount = 0;
   var negCount = 0;
@@ -1282,20 +1276,20 @@ function drawGroupBizDetail() {
   var html = '';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px;">';
 
-  // ���У���ֵ��Ƭ
+  // 左列：均值大卡片
   html += '<div style="background:linear-gradient(135deg,' + color + '14,' + color + '08);border-radius:12px;padding:20px;text-align:center;border:1px solid ' + color + '22;display:flex;flex-direction:column;justify-content:center;">';
-  html += '<div style="font-size:12px;color:var(--text2);margin-bottom:6px;">Ⱥ�����ۼƾ�ֵ</div>';
+  html += '<div style="font-size:12px;color:var(--text2);margin-bottom:6px;">群体月累计均值</div>';
   html += '<div style="font-size:42px;font-weight:800;color:' + color + ';line-height:1.1;">' + fmtNum(avg) + '</div>';
   html += '<div style="margin-top:10px;display:flex;justify-content:center;gap:10px;font-size:12px;flex-wrap:wrap;">';
-  html += '<span style="background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:10px;">' + staffNos.length + '�˲���</span>';
-  html += '<span style="background:#34a85318;color:#34a853;padding:2px 8px;border-radius:10px;">' + nonZeroCount + '���в���</span>';
-  html += '<span style="background:#ea433518;color:#ea4335;padding:2px 8px;border-radius:10px;cursor:pointer;" onclick="showZeroStaff(\'' + key + '\',0)">' + zeroCount + '���޲���</span>';
+  html += '<span style="background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:10px;">' + staffNos.length + '人参与</span>';
+  html += '<span style="background:#34a85318;color:#34a853;padding:2px 8px;border-radius:10px;">' + nonZeroCount + '人有产出</span>';
+  html += '<span style="background:#ea433518;color:#ea4335;padding:2px 8px;border-radius:10px;cursor:pointer;" onclick="showZeroStaff(\'' + key + '\',0)">' + zeroCount + '人无产能</span>';
   if (negCount > 0) {
-    html += '<span style="background:#fbbc0418;color:#fbbc04;padding:2px 8px;border-radius:10px;cursor:pointer;" onclick="showZeroStaff(\'' + key + '\',1)">' + negCount + '�˲���Ϊ��</span>';
+    html += '<span style="background:#fbbc0418;color:#fbbc04;padding:2px 8px;border-radius:10px;cursor:pointer;" onclick="showZeroStaff(\'' + key + '\',1)">' + negCount + '人产能为负</span>';
   }
   html += '</div></div>';
 
-  // ���У����ݸ���
+  // 中列：数据概览
   var median = 0;
   var sortedVals = vals.slice().sort(function(a,b){return a-b;});
   if (sortedVals.length > 0) {
@@ -1303,34 +1297,34 @@ function drawGroupBizDetail() {
     median = sortedVals.length % 2 ? sortedVals[mid] : ((sortedVals[mid-1] + sortedVals[mid]) / 2);
   }
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
-  // ���ֵ
+  // 最高值
   html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">';
-  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;">���ֵ</div>';
+  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;">最高值</div>';
   html += '<div style="font-size:28px;font-weight:800;color:#34a853;">' + fmtNum(maxVal) + '</div>';
-  html += '<div style="font-size:12px;color:#34a853;margin-top:4px;font-weight:500;">' + (maxPerson || '����') + '</div>';
+  html += '<div style="font-size:12px;color:#34a853;margin-top:4px;font-weight:500;">' + (maxPerson || '暂无') + '</div>';
   html += '</div>';
-  // ���ֵ
+  // 最低值
   html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">';
-  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;">���ֵ</div>';
+  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;">最低值</div>';
   html += '<div style="font-size:28px;font-weight:800;color:#ea4335;">' + fmtNum(minVal) + '</div>';
-  html += '<div style="font-size:12px;color:#ea4335;margin-top:4px;font-weight:500;">' + (minPerson || '����') + '</div>';
+  html += '<div style="font-size:12px;color:#ea4335;margin-top:4px;font-weight:500;">' + (minPerson || '暂无') + '</div>';
   html += '</div>';
-  // ��λ��
+  // 中位数
   html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">';
-  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;">��λ��</div>';
+  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;">中位数</div>';
   html += '<div style="font-size:28px;font-weight:800;color:' + color + ';">' + fmtNum(median) + '</div>';
-  html += '<div style="font-size:12px;color:var(--text2);margin-top:4px;">�м�ˮƽ</div>';
+  html += '<div style="font-size:12px;color:var(--text2);margin-top:4px;">中间水平</div>';
   html += '</div>';
-  // ���
+  // 差距
   var gap = maxVal - minVal;
   html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">';
-  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;">���</div>';
+  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;">差距</div>';
   html += '<div style="font-size:28px;font-weight:800;color:#fbbc04;">' + fmtNum(gap) + '</div>';
-  html += '<div style="font-size:12px;color:var(--text2);margin-top:4px;">���-���</div>';
+  html += '<div style="font-size:12px;color:var(--text2);margin-top:4px;">最高-最低</div>';
   html += '</div>';
   html += '</div>';
 
-  // ���У������ֲ�����̬5�ȷ֣�
+  // 右列：人数分布（动态5等分）
   var step = maxVal > 0 ? Math.ceil(maxVal / 5) : 1;
   var rangeCounts = [0,0,0,0,0];
   var rangeLabels = [];
@@ -1347,7 +1341,7 @@ function drawGroupBizDetail() {
     rangeCounts[bucket]++;
   });
   html += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;">';
-  html += '<div style="font-size:13px;color:var(--text);font-weight:600;margin-bottom:12px;">�����ֲ�</div>';
+  html += '<div style="font-size:13px;color:var(--text);font-weight:600;margin-bottom:12px;">人数分布</div>';
   for (var r = 0; r < 5; r++) {
     var pct = staffNos.length > 0 ? (rangeCounts[r] / staffNos.length * 100) : 0;
     html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">';
@@ -1363,9 +1357,9 @@ function drawGroupBizDetail() {
 }
 
 function exportGroupTable() {
-  var BIZ_KEYS = ['��Ч����','����','����','�ں��ײ�','�ն˺�Լ','��������','�����׸�'];
+  var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
   var staffNos = getFilteredStaffNos();
-  if (staffNos.length === 0) { alert('�����ݿɵ���'); return; }
+  if (staffNos.length === 0) { alert('无数据可导出'); return; }
 
   var dateKeys = getDateRange();
   var isMultiDate = dateKeys.length > 1;
@@ -1373,12 +1367,12 @@ function exportGroupTable() {
   var dateLabel = dateKeys.length === 1 ? (dateKeys[0].slice(0,4) + '-' + dateKeys[0].slice(4,6) + '-' + dateKeys[0].slice(6)) : (dateKeys[dateKeys.length-1].slice(0,4) + '-' + dateKeys[dateKeys.length-1].slice(4,6) + '-' + dateKeys[dateKeys.length-1].slice(6) + '_to_' + dateKeys[0].slice(0,4) + '-' + dateKeys[0].slice(4,6) + '-' + dateKeys[0].slice(6));
 
   if (window._currentDetailTab === 'store') {
-    // �ŵ���ϸ����
+    // 门店明细导出
     var storeMap = {};
     staffNos.forEach(function(k) {
       var e = aggEmps[k];
       if (!e) return;
-      var sn = e.store_name || 'δ֪';
+      var sn = e.store_name || '未知';
       if (!storeMap[sn]) {
         storeMap[sn] = { name: sn, type: e.store_type, branch: e.branch, count: 0, dwmSum: {}, scoreSum: 0 };
       }
@@ -1395,9 +1389,9 @@ function exportGroupTable() {
     stores.forEach(function(s) { s.avgScore = s.count > 0 ? s.scoreSum / s.count : 0; });
     stores.sort(function(a, b) { return b.avgScore - a.avgScore; });
 
-    var headers = ['�ŵ�','�ŵ����','֧��','����'];
-    BIZ_KEYS.forEach(function(k) { headers.push(k + (isMultiDate ? '(�ڼ�ϼ�)' : '(�ϼ�)')); });
-    headers.push('�ۺϵ÷�(��ֵ)');
+    var headers = ['门店','门店分类','支局','人数'];
+    BIZ_KEYS.forEach(function(k) { headers.push(k + (isMultiDate ? '(期间合计)' : '(合计)')); });
+    headers.push('综合得分(均值)');
     var aoa = [headers];
     stores.forEach(function(s) {
       var row = [s.name, s.type, s.branch, s.count];
@@ -1409,12 +1403,12 @@ function exportGroupTable() {
     var ws = XLSX.utils.aoa_to_sheet(aoa);
     ws['!cols'] = headers.map(function(h) { return {wch: h.length > 6 ? 14 : 10}; });
     var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '�ŵ���ϸ');
-    XLSX.writeFile(wb, '�ŵ���ϸ_' + dateLabel + '.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, '门店明细');
+    XLSX.writeFile(wb, '门店明细_' + dateLabel + '.xlsx');
     return;
   }
 
-  // ��Ա��ϸ����
+  // 人员明细导出
   var staffWithScore = staffNos.map(function(k) {
     var e = aggEmps[k];
     if (!e) return { no: k, score: 0 };
@@ -1423,10 +1417,10 @@ function exportGroupTable() {
   });
   staffWithScore.sort(function(a, b) { return b.score - a.score; });
 
-  // ����SheetJS����
-  var headers = ['����','����','�ŵ�','�ŵ����','��Ա����','֧��'];
-  BIZ_KEYS.forEach(function(k) { headers.push(k + (isMultiDate ? '(�ڼ�ϼ�)' : '(��)')); });
-  headers.push('�ۺϵ÷�');
+  // 构建SheetJS数据
+  var headers = ['工号','姓名','门店','门店分类','人员类型','支局'];
+  BIZ_KEYS.forEach(function(k) { headers.push(k + (isMultiDate ? '(期间合计)' : '(月)')); });
+  headers.push('综合得分');
   var aoa = [headers];
 
   staffWithScore.forEach(function(s) {
@@ -1443,35 +1437,35 @@ function exportGroupTable() {
   });
 
   var ws = XLSX.utils.aoa_to_sheet(aoa);
-  // �����п�
+  // 设置列宽
   ws['!cols'] = headers.map(function(h) { return {wch: h.length > 6 ? 14 : 10}; });
   var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, '��Ա��ϸ');
-  XLSX.writeFile(wb, '��Ա��ϸ_' + dateLabel + '.xlsx');
+  XLSX.utils.book_append_sheet(wb, ws, '人员明细');
+  XLSX.writeFile(wb, '人员明细_' + dateLabel + '.xlsx');
 }
 
 function getDateRange() {
   var startVal = document.getElementById('dateStart').value;
   var endVal = document.getElementById('dateEnd').value;
-  var start = startVal || ALL_DATES[ALL_DATES.length - 1]; // ����
-  var end = endVal || ALL_DATES[0]; // ����
+  var start = startVal || ALL_DATES[ALL_DATES.length - 1]; // 最早
+  var end = endVal || ALL_DATES[0]; // 最新
   if (start > end) { var t = start; start = end; end = t; }
   var dates = ALL_DATES.filter(function(d) { return d >= start && d <= end; });
   return dates;
 }
 
 function getAggregatedEmployees(staffNos, dateKeys) {
-  var BIZ_KEYS = ['��Ч����','����','����','�ں��ײ�','�ն˺�Լ','��������','�����׸�'];
+  var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
   var result = {};
   if (dateKeys.length <= 1) {
-    // �����ڣ�ֱ�ӷ��ص�ǰEMPLOYEES����
+    // 单日期，直接返回当前EMPLOYEES数据
     staffNos.forEach(function(k) {
       var e = EMPLOYEES[k];
       if (e) result[k] = e;
     });
     return result;
   }
-  // �����ڣ�����ÿ����Ա�ڷ�Χ���������ڵ�����
+  // 多日期：汇总每个人员在范围内所有日期的数据
   var allData = {};
   dateKeys.forEach(function(d) {
     var dd = ALL_DATE_DATA[d];
@@ -1484,32 +1478,31 @@ function getAggregatedEmployees(staffNos, dateKeys) {
         BIZ_KEYS.forEach(function(bk) { allData[k].dwm[bk] = { day: 0, week: 0, month: 0 }; });
       }
       var a = allData[k];
-      // ҵ��ֵȡ�ϼ�
+
+      // 业务值取合计
       BIZ_KEYS.forEach(function(bk) {
         var dwm = e.dwm ? e.dwm[bk] : null;
         a.dwm[bk].month += dwm ? dwm.month : 0;
       });
-      // �����״�÷������ۺ����֣���̬���㣩
       var rScore = computeRadarScores(e, staffNos);
       var rKeys = Object.keys(rScore.radarScores);
       var rAvg = 0;
       rKeys.forEach(function(d) { rAvg += rScore.radarScores[d]; });
       a.scoreSum += rKeys.length > 0 ? rAvg / rKeys.length : 0;
       a.scoreCnt++;
-      // ȡ�������ڵ���ѵ����
       if (e.training) a.training = e.training;
-      // ���ƶ���ͳ��
+      // 疑似冻结统计
       if (e.suspected_frozen) a._frozenCount = (a._frozenCount || 0) + 1;
     });
   });
-  // ���ƶ����ж�
+  // 疑似冻结判断
   Object.keys(allData).forEach(function(k) {
     var a = allData[k];
-    // ����������ȫ�����ڶ����ƶ��ᣬ�ű��Ϊ���ƶ���
+    // 多日期中若全部日期都疑似冻结，才标记为疑似冻结
     a.suspected_frozen = a._frozenCount >= dateKeys.length;
     delete a._frozenCount;
   });
-  // αװΪ��׼employee��ʽ
+  // 伪装为标准employee格式
   staffNos.forEach(function(k) {
     if (allData[k]) {
       allData[k]._avgScore = allData[k].scoreCnt > 0 ? allData[k].scoreSum / allData[k].scoreCnt : 0;
@@ -1535,10 +1528,10 @@ function switchDetailTab(tab) {
 }
 
 function drawStaffTable() {
-  var BIZ_KEYS = ['��Ч����','����','����','�ں��ײ�','�ն˺�Լ','��������','�����׸�'];
+  var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
   var dateKeys = getDateRange();
   var isMultiDate = dateKeys.length > 1;
-  var periodLabel = isMultiDate ? '(�ڼ�ϼ�)' : '(��)';
+  var periodLabel = isMultiDate ? '(期间合计)' : '(月)';
   var filteredNos = getFilteredStaffNos();
   var aggEmps = getAggregatedEmployees(filteredNos, dateKeys);
   var sortedNos = filteredNos.map(function(k) {
@@ -1551,15 +1544,15 @@ function drawStaffTable() {
 
   var tblHtml = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
   tblHtml += '<thead><tr style="background:var(--primary-light);font-weight:600;position:sticky;top:0;">';
-  tblHtml += '<th style="padding:8px 6px;text-align:left;">����</th>';
-  tblHtml += '<th style="padding:8px 6px;text-align:left;">����</th>';
-  tblHtml += '<th style="padding:8px 6px;text-align:center;">״̬</th>';
-  tblHtml += '<th style="padding:8px 6px;text-align:left;">�ŵ�</th>';
-  tblHtml += '<th style="padding:8px 6px;text-align:center;">�ŵ����</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:left;">工号</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:left;">姓名</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:center;">状态</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:left;">门店</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:center;">门店分类</th>';
   BIZ_KEYS.forEach(function(k) {
     tblHtml += '<th style="padding:8px 6px;text-align:center;">' + k + periodLabel + '</th>';
   });
-  tblHtml += '<th style="padding:8px 6px;text-align:center;">�ۺϵ÷�</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:center;">综合得分</th>';
   tblHtml += '</tr></thead><tbody>';
   var sumCount = 0, sumScore = 0;
   var bizSums = {};
@@ -1578,8 +1571,8 @@ function drawStaffTable() {
     });
     var clr = avgNum >= 75 ? '#34a853' : avgNum >= 40 ? '#fbbc04' : '#ea4335';
     var statusHtml = e.suspected_frozen ?
-      '<span style="background:#fff3cd;color:#856404;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600;border:1px solid #ffc107;">���ƶ���</span>' :
-      '<span style="color:#34a853;font-size:11px;">����</span>';
+      '<span style="background:#fff3cd;color:#856404;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600;border:1px solid #ffc107;">疑似冻结</span>' :
+      '<span style="color:#34a853;font-size:11px;">正常</span>';
     tblHtml += '<tr style="border-bottom:1px solid #eee;cursor:pointer;" onclick="selectEmployee(\'' + k + '\');">';
     tblHtml += '<td style="padding:6px;">' + k + '</td>';
     tblHtml += '<td style="padding:6px;">' + e.staff_nm + '</td>';
@@ -1593,11 +1586,11 @@ function drawStaffTable() {
     tblHtml += '<td style="padding:6px;text-align:center;font-weight:600;color:' + clr + ';">' + fmtNum(avg) + '</td>';
     tblHtml += '</tr>';
   });
-  // �ϼ���
+  // 合计行
   var avgScoreAll = sumCount > 0 ? fmtNum(sumScore / sumCount) : '0';
   tblHtml += '<tr style="border-top:2px solid var(--primary);background:var(--primary-light);font-weight:700;">';
-  tblHtml += '<td style="padding:8px 6px;">�ϼ�</td>';
-  tblHtml += '<td style="padding:8px 6px;">' + sumCount + '��</td>';
+  tblHtml += '<td style="padding:8px 6px;">合计</td>';
+  tblHtml += '<td style="padding:8px 6px;">' + sumCount + '人</td>';
   tblHtml += '<td style="padding:8px 6px;"></td>';
   tblHtml += '<td style="padding:8px 6px;"></td>';
   tblHtml += '<td style="padding:8px 6px;"></td>';
@@ -1611,19 +1604,19 @@ function drawStaffTable() {
 }
 
 function drawStoreTable() {
-  var BIZ_KEYS = ['��Ч����','����','����','�ں��ײ�','�ն˺�Լ','��������','�����׸�'];
+  var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
   var dateKeys = getDateRange();
   var isMultiDate = dateKeys.length > 1;
-  var periodLabel = isMultiDate ? '(�ڼ�ϼ�)' : '(�ϼ�)';
+  var periodLabel = isMultiDate ? '(期间合计)' : '(合计)';
   var staffNos = window._groupBizStaffNos || [];
   var aggEmps = getAggregatedEmployees(staffNos, dateKeys);
 
-  // ���ŵ����ƻ���
+  // 按门店名称汇总
   var storeMap = {};
   staffNos.forEach(function(k) {
     var e = aggEmps[k];
     if (!e) return;
-    var sn = e.store_name || 'δ֪';
+    var sn = e.store_name || '未知';
     if (!storeMap[sn]) {
       storeMap[sn] = { name: sn, type: e.store_type, branch: e.branch, count: 0, radarSum: {}, dwmSum: {}, scoreSum: 0 };
     }
@@ -1639,7 +1632,7 @@ function drawStoreTable() {
     });
   });
 
-  // תΪ���鲢���ۺϵ÷־�ֵ����
+  // 转为数组并按综合得分均值降序
   var stores = Object.values(storeMap);
   stores.forEach(function(s) {
     s.avgScore = s.count > 0 ? s.scoreSum / s.count : 0;
@@ -1648,14 +1641,14 @@ function drawStoreTable() {
 
   var tblHtml = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
   tblHtml += '<thead><tr style="background:var(--primary-light);font-weight:600;position:sticky;top:0;">';
-  tblHtml += '<th style="padding:8px 6px;text-align:left;">�ŵ�</th>';
-  tblHtml += '<th style="padding:8px 6px;text-align:center;">�ŵ����</th>';
-  tblHtml += '<th style="padding:8px 6px;text-align:center;">֧��</th>';
-  tblHtml += '<th style="padding:8px 6px;text-align:center;">����</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:left;">门店</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:center;">门店分类</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:center;">支局</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:center;">人数</th>';
   BIZ_KEYS.forEach(function(k) {
     tblHtml += '<th style="padding:8px 6px;text-align:center;">' + k + periodLabel + '</th>';
   });
-  tblHtml += '<th style="padding:8px 6px;text-align:center;">�ۺϵ÷�(��)</th>';
+  tblHtml += '<th style="padding:8px 6px;text-align:center;">综合得分(均)</th>';
   tblHtml += '</tr></thead><tbody>';
   stores.forEach(function(s) {
     var clr = s.avgScore >= 75 ? '#34a853' : s.avgScore >= 40 ? '#fbbc04' : '#ea4335';
@@ -1670,7 +1663,7 @@ function drawStoreTable() {
     tblHtml += '<td style="padding:6px;text-align:center;font-weight:600;color:' + clr + ';">' + fmtNum(s.avgScore) + '</td>';
     tblHtml += '</tr>';
   });
-  // �ϼ���
+  // 合计行
   var totalCount = 0, totalScoreSum = 0;
   var totalDwm = {};
   BIZ_KEYS.forEach(function(bk) { totalDwm[bk] = 0; });
@@ -1681,7 +1674,7 @@ function drawStoreTable() {
   });
   var totalAvgScore = totalCount > 0 ? (totalScoreSum / totalCount) : 0;
   tblHtml += '<tr style="border-top:2px solid var(--primary);background:var(--primary-light);font-weight:700;">';
-  tblHtml += '<td style="padding:8px 6px;">�ϼ�</td>';
+  tblHtml += '<td style="padding:8px 6px;">合计</td>';
   tblHtml += '<td style="padding:8px 6px;"></td>';
   tblHtml += '<td style="padding:8px 6px;"></td>';
   tblHtml += '<td style="padding:8px 6px;text-align:center;">' + totalCount + '</td>';
@@ -1711,13 +1704,13 @@ function showZeroStaff(key, type) {
   });
   var title, content;
   if (type === 1) {
-    title = key + ' - ����Ϊ����Ա';
-    content = negList.length > 0 ? negList.join('��') : '�޲���Ϊ����Ա';
+    title = key + ' - 产能为负人员';
+    content = negList.length > 0 ? negList.join('、') : '无产能为负人员';
   } else {
-    title = key + ' - �޲�����Ա';
-    content = zeroList.length > 0 ? zeroList.join('��') : 'ȫ����Ա���в���';
+    title = key + ' - 无产能人员';
+    content = zeroList.length > 0 ? zeroList.join('、') : '全部人员均有产能';
   }
-  // ����
+  // 弹窗
   var overlay = document.createElement('div');
   overlay.id = 'zeroStaffOverlay';
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;';
@@ -1725,7 +1718,7 @@ function showZeroStaff(key, type) {
   modal.style.cssText = 'background:#fff;border-radius:12px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2);';
   modal.innerHTML = '<h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text);">' + title + '</h3>' +
     '<p style="margin:0 0 16px 0;font-size:14px;color:var(--text2);line-height:1.8;word-break:break-all;">' + content + '</p>' +
-    '<div style="text-align:right;"><button id="zeroStaffCloseBtn" style="padding:6px 20px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:14px;color:var(--text);">�ر�</button></div>';
+    '<div style="text-align:right;"><button id="zeroStaffCloseBtn" style="padding:6px 20px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:14px;color:var(--text);">关闭</button></div>';
   overlay.onclick = function(ev) { if (ev.target === overlay) overlay.remove(); };
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
@@ -1738,13 +1731,13 @@ function renderTraining(emp) {
   var radar = computeRadarScores(emp, window._peerNos || getFilteredStaffNos()).radarScores;
   /* dim_personal removed */
 
-  // ʹ�ù����������㶯̬���ֵ
+  // 使用公共函数计算动态组均值
   var peerNos = window._peerNos || getFilteredStaffNos();
   var scoreResult = computeRadarScores(emp, peerNos);
   var dimA = scoreResult.dimAvg;
   var personalVals = scoreResult.personalVals;
 
-  // Ҳ�ö�̬�״�÷�
+  // 也用动态雷达得分
   var dynamicRadar = window._dynamicRadarScores || {};
 
   var strongs = [];
@@ -1764,25 +1757,25 @@ function renderTraining(emp) {
   });
 
   if (strongs.length > 0) {
-    html += '<div style="margin-bottom:12px"><b style="color:#34a853;">��������</b>';
-    strongs.forEach(function(s) { html += '<span class="badge badge-good" style="margin-right:6px">' + s.dim + ' (' + fmtNum(s.pv) + '����ֵ' + fmtNum(s.av) + ')</span>'; });
+    html += '<div style="margin-bottom:12px"><b style="color:#34a853;">优势领域：</b>';
+    strongs.forEach(function(s) { html += '<span class="badge badge-good" style="margin-right:6px">' + s.dim + ' (' + fmtNum(s.pv) + '，均值' + fmtNum(s.av) + ')</span>'; });
     html += '</div>';
   }
   if (weaks.length > 0) {
-    html += '<div style="margin-bottom:12px"><b style="color:#ea4335;">��������</b>';
+    html += '<div style="margin-bottom:12px"><b style="color:#ea4335;">薄弱领域：</b>';
     weaks.forEach(function(s) {
       var cls = s.score < 30 ? 'badge-bad' : 'badge-warn';
-      html += '<span class="badge ' + cls + '" style="margin-right:6px">' + s.dim + ' (' + fmtNum(s.pv) + '����ֵ' + fmtNum(s.av) + ')</span>';
+      html += '<span class="badge ' + cls + '" style="margin-right:6px">' + s.dim + ' (' + fmtNum(s.pv) + '，均值' + fmtNum(s.av) + ')</span>';
     });
     html += '</div>';
   }
   if (midRange.length > 0) {
-    html += '<div style="margin-bottom:12px"><b style="color:var(--text);">��ƽ����</b>';
+    html += '<div style="margin-bottom:12px"><b style="color:var(--text);">持平领域：</b>';
     midRange.forEach(function(s) { html += '<span style="display:inline-block;margin-right:6px;padding:2px 8px;border-radius:4px;font-size:12px;background:#e8f0fe;color:#1a73e8;">' + s.dim + ' (' + fmtNum(s.pv) + ')</span>'; });
     html += '</div>';
   }
 
-  html += '<div style="margin-top:8px"><b>�������ѵ���飺</b></div>';
+  html += '<div style="margin-top:8px"><b>针对性培训建议：</b></div>';
   html += emp.training;
   box.innerHTML = html;
 }
@@ -1792,7 +1785,7 @@ window.addEventListener('resize', function() {
 });
 
 function init() {
-  // ���ڷ�Χѡ����
+  // 日期范围选择器
   var dsSel = document.getElementById('dateStart');
   var deSel = document.getElementById('dateEnd');
   dsSel.innerHTML = '';
@@ -1802,13 +1795,13 @@ function init() {
     var o1 = document.createElement('option'); o1.value = d; o1.textContent = label; dsSel.appendChild(o1);
     var o2 = document.createElement('option'); o2.value = d; o2.textContent = label; deSel.appendChild(o2);
   });
-  // Ĭ����ʼ����=���£���ֹ����=����
+  // 默认起始日期=最新，截止日期=最新
   dsSel.value = ALL_DATES[0];
   deSel.value = ALL_DATES[0];
 
-  // ����Ĭ����������
+  // 加载默认日期数据
   switchDate();
-  // ��ʾ��������
+  // 显示当天日期
   var today = new Date();
   var todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
   document.getElementById('headerDate').textContent = todayStr;
@@ -1816,7 +1809,7 @@ function init() {
 
 init();
 
-// PWA: ע��Service Worker
+// PWA: 注册Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('sw.js').then(function(reg) {
