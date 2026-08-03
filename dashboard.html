@@ -56,6 +56,12 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
 #queryBtn:hover { background:#1557b0; }
 #exportBtn { padding:4px 14px; background:#34a853; color:#fff; border:none; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600; margin-left:4px; white-space:nowrap; }
 #exportBtn:hover { background:#2d9249; }
+.date-shortcuts { display:flex; gap:4px; align-items:center; }
+.shortcut-btn { padding:4px 10px; background:#f0f4ff; color:var(--primary); border:1px solid #c8d8f8; border-radius:5px; font-size:12px; cursor:pointer; white-space:nowrap; transition:all 0.2s; }
+.shortcut-btn:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+.shortcut-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+.filters input[type="date"] { padding:6px 10px; border:1px solid var(--border); border-radius:6px; font-size:14px; outline:none; cursor:pointer; }
+.filters input[type="date"]:focus { border-color:var(--primary); }
 .search-select { position:relative; display:inline-block; }
 .search-select input { width:100%; padding:6px 12px; border:1px solid var(--border); border-radius:6px; font-size:14px; outline:none; box-sizing:border-box; }
 .search-select input:focus { border-color:var(--primary); }
@@ -104,15 +110,17 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
   </div>
   <div>
     <label>起始日期:</label>
-    <select id="dateStart">
-      <option value="">最早</option>
-    </select>
+    <input type="date" id="dateStart">
   </div>
   <div>
     <label>截止日期:</label>
-    <select id="dateEnd">
-      <option value="">最新</option>
-    </select>
+    <input type="date" id="dateEnd">
+  </div>
+  <div class="date-shortcuts">
+    <button class="shortcut-btn" onclick="setDateShortcut('latest')" title="最新日期">最新</button>
+    <button class="shortcut-btn" onclick="setDateShortcut('thisMonth')" title="本月">本月</button>
+    <button class="shortcut-btn" onclick="setDateShortcut('lastMonth')" title="上月">上月</button>
+    <button class="shortcut-btn" onclick="setDateShortcut('last3m')" title="近3个月">近3月</button>
   </div>
   <div>
     <label>选择人员:</label>
@@ -1447,12 +1455,17 @@ function exportGroupTable() {
 }
 
 function getDateRange() {
-  var startVal = document.getElementById('dateStart').value;
+  var startVal = document.getElementById('dateStart').value; // yyyy-MM-dd or ''
   var endVal = document.getElementById('dateEnd').value;
-  var start = startVal || ALL_DATES[ALL_DATES.length - 1]; // 最早
-  var end = endVal || ALL_DATES[0]; // 最新
+  var start = startVal ? date2ymd(startVal) : ALL_DATES[ALL_DATES.length - 1]; // 最早
+  var end = endVal ? date2ymd(endVal) : ALL_DATES[0]; // 最新
   if (start > end) { var t = start; start = end; end = t; }
   var dates = ALL_DATES.filter(function(d) { return d >= start && d <= end; });
+  // 如果选择的日期不在快照中，找最近的快照日期
+  if (dates.length === 0) {
+    dates = ALL_DATES.filter(function(d) { return d <= end; });
+    if (dates.length === 0) dates = [ALL_DATES[0]];
+  }
   return dates;
 }
 
@@ -1787,19 +1800,19 @@ window.addEventListener('resize', function() {
 });
 
 function init() {
-  // 日期范围选择器
-  var dsSel = document.getElementById('dateStart');
-  var deSel = document.getElementById('dateEnd');
-  dsSel.innerHTML = '';
-  deSel.innerHTML = '';
-  ALL_DATES.slice().reverse().forEach(function(d) {
-    var label = d.slice(0,4) + '-' + d.slice(4,6) + '-' + d.slice(6);
-    var o1 = document.createElement('option'); o1.value = d; o1.textContent = label; dsSel.appendChild(o1);
-    var o2 = document.createElement('option'); o2.value = d; o2.textContent = label; deSel.appendChild(o2);
-  });
+  // 日期范围选择器 - 改为 input[type=date]
+  var dsInput = document.getElementById('dateStart');
+  var deInput = document.getElementById('dateEnd');
+  // 将 ALL_DATES 中最早的和最新的转为 yyyy-MM-dd 格式设置
+  var minDate = ALL_DATES[ALL_DATES.length - 1]; // 最早 yyyymmdd
+  var maxDate = ALL_DATES[0]; // 最新 yyyymmdd
+  dsInput.min = ymd2date(minDate);
+  dsInput.max = ymd2date(maxDate);
+  deInput.min = ymd2date(minDate);
+  deInput.max = ymd2date(maxDate);
   // 默认起始日期=最新，截止日期=最新
-  dsSel.value = ALL_DATES[0];
-  deSel.value = ALL_DATES[0];
+  dsInput.value = ymd2date(maxDate);
+  deInput.value = ymd2date(maxDate);
 
   // 加载默认日期数据
   switchDate();
@@ -1807,6 +1820,55 @@ function init() {
   var today = new Date();
   var todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
   document.getElementById('headerDate').textContent = todayStr;
+}
+
+// yyyymmdd -> yyyy-MM-dd
+function ymd2date(s) { return s.slice(0,4) + '-' + s.slice(4,6) + '-' + s.slice(6); }
+// yyyy-MM-dd -> yyyymmdd
+function date2ymd(s) { return s.replace(/-/g, ''); }
+
+// 日期快捷按钮
+function setDateShortcut(type) {
+  var latest = ALL_DATES[0]; // yyyymmdd
+  var deInput = document.getElementById('dateEnd');
+  var dsInput = document.getElementById('dateStart');
+  deInput.value = ymd2date(latest);
+
+  if (type === 'latest') {
+    dsInput.value = ymd2date(latest);
+  } else if (type === 'thisMonth') {
+    var thisMonth = latest.slice(0,6);
+    var monthDates = ALL_DATES.filter(function(d) { return d.slice(0,6) === thisMonth; });
+    var start = monthDates.length > 0 ? monthDates[monthDates.length - 1] : latest;
+    dsInput.value = ymd2date(start);
+  } else if (type === 'lastMonth') {
+    var lastM = latest.slice(0,6);
+    var ly = parseInt(lastM.slice(0,4));
+    var lm = parseInt(lastM.slice(4,6)) - 1;
+    if (lm === 0) { ly--; lm = 12; }
+    var lastMonthKey = String(ly) + String(lm).padStart(2,'0');
+    var monthDates = ALL_DATES.filter(function(d) { return d.slice(0,6) === lastMonthKey; });
+    if (monthDates.length > 0) {
+      dsInput.value = ymd2date(monthDates[monthDates.length - 1]);
+      deInput.value = ymd2date(monthDates[0]);
+    } else {
+      dsInput.value = ymd2date(latest);
+    }
+  } else if (type === 'last3m') {
+    var latestY = parseInt(latest.slice(0,4));
+    var latestM = parseInt(latest.slice(4,6));
+    latestM -= 2;
+    if (latestM <= 0) { latestY--; latestM += 12; }
+    var startKey = String(latestY) + String(latestM).padStart(2,'0');
+    var monthDates = ALL_DATES.filter(function(d) { return d.slice(0,6) >= startKey; });
+    if (monthDates.length > 0) {
+      dsInput.value = ymd2date(monthDates[monthDates.length - 1]);
+    }
+  }
+
+  // 高亮当前快捷按钮
+  document.querySelectorAll('.shortcut-btn').forEach(function(b) { b.classList.remove('active'); });
+  event.target.classList.add('active');
 }
 
 init();
