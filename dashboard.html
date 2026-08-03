@@ -72,7 +72,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
 .search-select input:focus { border-color:var(--primary); }
 #branchSelect { width:100px; }
 #empSelect { width:200px; position:relative; z-index:101; }
-.search-select-dropdown { display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border); border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,0.15); max-height:260px; overflow-y:auto; z-index:1000; margin-top:2px; }
+.search-select-dropdown { display:none; position:fixed; background:#fff; border:1px solid var(--border); border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,0.15); max-height:260px; overflow-y:auto; z-index:9999; }
 .search-select-dropdown.open { display:block; }
 .search-select-item { padding:7px 12px; font-size:13px; cursor:pointer; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .search-select-item:hover { background:var(--primary-light); color:var(--primary); }
@@ -299,15 +299,34 @@ function initSearchSelect(inputId, dropdownId, optionsGetter, onSelect) {
     dropdown.innerHTML = html;
   }
 
+  function positionDropdown() {
+    var rect = input.getBoundingClientRect();
+    // Move dropdown to body to avoid any overflow clipping
+    if (dropdown.parentElement !== document.body) {
+      document.body.appendChild(dropdown);
+    }
+    dropdown.style.left = rect.left + 'px';
+    dropdown.style.top = (rect.bottom + 2) + 'px';
+    dropdown.style.width = rect.width + 'px';
+  }
+
   input.addEventListener('focus', function() {
     input.select();
     renderList(input.value === input._displayLabel ? '' : input.value);
+    positionDropdown();
     dropdown.classList.add('open');
   });
 
   input.addEventListener('input', function() {
     renderList(input.value);
-    if (!dropdown.classList.contains('open')) dropdown.classList.add('open');
+    if (!dropdown.classList.contains('open')) {
+      positionDropdown();
+      dropdown.classList.add('open');
+    }
+  });
+
+  window.addEventListener('resize', function() {
+    if (dropdown.classList.contains('open')) positionDropdown();
   });
 
   dropdown.addEventListener('click', function(e) {
