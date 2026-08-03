@@ -145,7 +145,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260803b"></script>
+<script src="data.js?v=20260803c"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -170,7 +170,7 @@ function getDimPersonal(emp, dim) {
 
 function computeRadarAvg(emp) {
   var peers = getFilteredStaffNos();
-  var rScore = computeRadarScores(emp, peers);
+  var rScore = computeRadarScores(emp, peers, true);
   var rKeys = Object.keys(rScore.radarScores);
   var sum = 0;
   rKeys.forEach(function(d) { sum += rScore.radarScores[d]; });
@@ -425,6 +425,14 @@ function doQuery() {
       STAFF_CATEGORIES = dd.staff_categories;
       STORE_NAMES = dd.store_names;
     }
+    // 多日期时：用聚合数据替换EMPLOYEES，使所有下游函数自动使用聚合数据
+    if (dateKeys.length > 1) {
+      var allStaffNos = Object.keys(EMPLOYEES);
+      var aggEmps = getAggregatedEmployees(allStaffNos, dateKeys);
+      if (Object.keys(aggEmps).length > 0) {
+        EMPLOYEES = aggEmps;
+      }
+    }
     // 如果选了特定日期，刷新筛选器（保留已选值）
     var prevSc = document.getElementById('storeCatFilter').value;
     var prevSf = document.getElementById('staffCatFilter').value;
@@ -581,17 +589,13 @@ function renderGroupDashboard() {
   var BIZ_KEYS = ['有效积分','天翼','宽带','融合套餐','终端合约','新增高套','存量套改'];
   var DIM_TO_DWM = {'天翼发展':'天翼','宽带发展':'宽带','FTTR发展':null,'融合套餐':'融合套餐','终端合约':'终端合约','积分产出':'有效积分','高套发展':'新增高套','存量套改':'存量套改'};
 
-  // 多日期时用聚合数据
-  var dateKeys4Group = getDateRange();
-  var isMultiDate4Group = dateKeys4Group.length > 1;
-  var aggEmps4Group = isMultiDate4Group ? getAggregatedEmployees(staffNos, dateKeys4Group) : null;
-
+  // EMPLOYEES在doQuery中已根据日期范围替换为聚合数据，直接使用即可
   // 各维度平均分（动态min-max归一化后取均值）
   // 先收集所有人员各维度的原始值
   var dimRawVals = {};
   RADAR_DIMS.forEach(function(dim) { dimRawVals[dim] = []; });
   staffNos.forEach(function(k) {
-    var e = aggEmps4Group ? aggEmps4Group[k] : EMPLOYEES[k];
+    var e = EMPLOYEES[k];
     if (!e) return;
     RADAR_DIMS.forEach(function(dim) {
       var dwmKey = DIM_TO_DWM[dim];
@@ -622,7 +626,7 @@ function renderGroupDashboard() {
   BIZ_KEYS.forEach(function(key) {
     var sum = 0, cnt = 0;
     staffNos.forEach(function(k) {
-      var e = aggEmps4Group ? aggEmps4Group[k] : EMPLOYEES[k];
+      var e = EMPLOYEES[k];
       if (!e || !e.dwm || !e.dwm[key]) return;
       sum += e.dwm[key].month; cnt++;
     });
@@ -632,7 +636,7 @@ function renderGroupDashboard() {
   // 强弱分布（基于动态归一化得分）
   var strongCnt = 0, weakCnt = 0, midCnt = 0;
   staffNos.forEach(function(k) {
-    var e = aggEmps4Group ? aggEmps4Group[k] : EMPLOYEES[k];
+    var e = EMPLOYEES[k];
     if (!e) return;
     var normVals = RADAR_DIMS.map(function(dim) {
       var dwmKey = DIM_TO_DWM[dim];
@@ -726,7 +730,7 @@ function renderGroupDashboard() {
     var staffWithScore = staffNos.map(function(k) {
       var e = EMPLOYEES[k];
       if (!e) return { no: k, score: 0 };
-      var rScore = computeRadarScores(e, staffNos);
+      var rScore = computeRadarScores(e, staffNos, true);
       var avg = 0; var rKeys = Object.keys(rScore.radarScores);
       rKeys.forEach(function(d) { avg += rScore.radarScores[d]; });
       avg = rKeys.length ? avg / rKeys.length : 0;
@@ -862,12 +866,7 @@ function getGroupTrainingTip(dim, score) {
 function renderDashboard(emp, staffNo) {
   var dash = document.getElementById('dashboard');
 
-  // 多日期时用聚合数据替代单日期数据
-  var dateKeys = getDateRange();
-  if (dateKeys.length > 1) {
-    var aggEmps = getAggregatedEmployees([staffNo], dateKeys);
-    if (aggEmps[staffNo]) emp = aggEmps[staffNo];
-  }
+  // EMPLOYEES在doQuery中已替换为聚合数据，emp已是聚合后的员工对象，无需再次聚合
 
   // 动态计算同组排名：根据当前筛选条件确定排名范围
   var peerNos = getPeerStaffNos(emp);
@@ -875,8 +874,8 @@ function renderDashboard(emp, staffNo) {
   var dynamicRank = computeDynamicRanks(emp, peerNos);
   var sameType = dynamicRank.peerCount;
 
-  // 用公共函数计算动态雷达得分和组均值
-  var scoreResult = computeRadarScores(emp, peerNos);
+  // 用公共函数计算动态雷达得分和组均值（skipAgg=true因为EMPLOYEES已是聚合数据）
+  var scoreResult = computeRadarScores(emp, peerNos, true);
   var dynamicRadarScores = scoreResult.radarScores;
   var dimVals4Score = scoreResult.dimVals;
   var dimPersonal4Score = scoreResult.personalVals;
@@ -966,9 +965,9 @@ function renderDashboard(emp, staffNo) {
 }
 
 function renderRadar(emp) {
-  // 使用公共函数计算雷达得分
+  // 使用公共函数计算雷达得分（skipAgg=true因为EMPLOYEES已是聚合数据）
   var peerNos = window._peerNos || getFilteredStaffNos();
-  var scoreResult = computeRadarScores(emp, peerNos);
+  var scoreResult = computeRadarScores(emp, peerNos, true);
   var dynamicRadar = scoreResult.radarScores;
 
   var names = Object.keys(dynamicRadar);
@@ -1599,7 +1598,9 @@ function drawStaffTable() {
   var isMultiDate = dateKeys.length > 1;
   var periodLabel = isMultiDate ? '(期间合计)' : '(月)';
   var filteredNos = getFilteredStaffNos();
-  var aggEmps = getAggregatedEmployees(filteredNos, dateKeys);
+  // EMPLOYEES在doQuery中已替换为聚合数据，直接使用
+  var aggEmps = {};
+  filteredNos.forEach(function(k) { if (EMPLOYEES[k]) aggEmps[k] = EMPLOYEES[k]; });
   var sortedNos = filteredNos.map(function(k) {
     var e = aggEmps[k];
     if (!e) return { no: k, score: 0 };
@@ -1794,12 +1795,12 @@ function showZeroStaff(key, type) {
 function renderTraining(emp) {
   var box = document.getElementById('trainingBox');
   var html = '';
-  var radar = computeRadarScores(emp, window._peerNos || getFilteredStaffNos()).radarScores;
+  var radar = computeRadarScores(emp, window._peerNos || getFilteredStaffNos(), true).radarScores;
   /* dim_personal removed */
 
   // 使用公共函数计算动态组均值
   var peerNos = window._peerNos || getFilteredStaffNos();
-  var scoreResult = computeRadarScores(emp, peerNos);
+  var scoreResult = computeRadarScores(emp, peerNos, true);
   var dimA = scoreResult.dimAvg;
   var personalVals = scoreResult.personalVals;
 
