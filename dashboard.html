@@ -20,7 +20,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
 .header { background: linear-gradient(135deg, #1a73e8, #0d47a1); color:#fff; padding:16px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
 .header h1 { font-size:22px; font-weight:600; }
 .header-info { display:flex; gap:16px; align-items:center; font-size:14px; }
-.filters { background:#fff; padding:10px 20px; border-bottom:1px solid var(--border); display:flex; gap:8px; flex-wrap:nowrap; align-items:center; overflow-x:auto; }
+.filters { background:#fff; padding:10px 20px; border-bottom:1px solid var(--border); display:flex; gap:8px; flex-wrap:nowrap; align-items:center; overflow-x:auto; overflow-y:visible; position:relative; z-index:100; }
 .filters label { font-size:12px; color:var(--text2); margin-right:2px; white-space:nowrap; }
 .filters select, .filters input { padding:5px 8px; border:1px solid var(--border); border-radius:5px; font-size:13px; outline:none; }
 .filters select:focus, .filters input:focus { border-color:var(--primary); }
@@ -28,7 +28,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
 .filters .spacer { flex:1 1 0; min-width:8px; }
 .filters select { max-width:90px; }
 #branchSelect { width:100px; }
-#empSelect { width:200px; }
+#empSelect { width:200px; position:relative; z-index:101; }
 .dashboard { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:16px 24px; max-width:1600px; margin:0 auto; }
 .card { background:var(--card); border-radius:10px; box-shadow:var(--shadow); padding:20px; }
 .card-full { grid-column:1/-1; }
@@ -71,7 +71,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
 .search-select input { width:100%; padding:5px 8px; border:1px solid var(--border); border-radius:5px; font-size:13px; outline:none; box-sizing:border-box; }
 .search-select input:focus { border-color:var(--primary); }
 #branchSelect { width:100px; }
-#empSelect { width:200px; }
+#empSelect { width:200px; position:relative; z-index:101; }
 .search-select-dropdown { display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border); border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,0.15); max-height:260px; overflow-y:auto; z-index:1000; margin-top:2px; }
 .search-select-dropdown.open { display:block; }
 .search-select-item { padding:7px 12px; font-size:13px; cursor:pointer; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -145,9 +145,9 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260801"></script>
+<script src="data.js?v=20260803"></script>
 <script>
-const ALL_DATES = ["20260731", "20260730", "20260729", "20260728", "20260727", "20260726", "20260725", "20260724", "20260722", "20260630", "20260531", "20260430", "20260331", "20260228", "20260131", "20250830", "20250731", "20250630", "20250531", "20250430", "20250331", "20250228", "20250131"];
+const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
 let EMPLOYEES = {};
 let TRENDS = {};
@@ -155,7 +155,7 @@ let BRANCHES = [];
 let STORE_CATEGORIES = [];
 let STAFF_CATEGORIES = [];
 let STORE_NAMES = [];
-let currentDate = '20260731';
+let currentDate = Object.keys(ALL_DATE_DATA).sort().reverse()[0] || '20260731';
 
 function fmtNum(v) { v = parseFloat(v); if (isNaN(v)) return '0'; return v % 1 === 0 ? String(Math.round(v)) : v.toFixed(1); }
 
@@ -192,8 +192,28 @@ function getDimGroupAvg(dim, peerNos) {
 
 let charts = {};
 
-function switchDate() {
+function ensureDateMeta(dd) {
+    if (!dd || !dd.employees) return;
+    if (!dd.branches || !dd.store_categories) {
+      var branches = {}, storeCats = {}, staffCats = {}, storeNames = {};
+      Object.keys(dd.employees).forEach(function(k) {
+        var e = dd.employees[k];
+        if (e.branch) branches[e.branch] = 1;
+        if (e.store_type) storeCats[e.store_type] = 1;
+        if (e.staff_category) staffCats[e.staff_category] = 1;
+        if (e.store_name) storeNames[e.store_name] = 1;
+      });
+      dd.branches = dd.branches || Object.keys(branches).sort();
+      dd.store_categories = dd.store_categories || Object.keys(storeCats).sort();
+      dd.staff_categories = dd.staff_categories || Object.keys(staffCats).sort();
+      dd.store_names = dd.store_names || Object.keys(storeNames).sort();
+      dd.trends = dd.trends || {};
+    }
+  }
+
+  function switchDate() {
   var dd = ALL_DATE_DATA[currentDate];
+  ensureDateMeta(dd);
   EMPLOYEES = dd.employees;
   TRENDS = dd.trends;
   BRANCHES = dd.branches;
@@ -378,6 +398,7 @@ function doQuery() {
     currentDate = dateKeys[0]; // 使用起始日期作为当前日期
     var dd = ALL_DATE_DATA[currentDate];
     if (dd) {
+      ensureDateMeta(dd);
       EMPLOYEES = dd.employees;
       TRENDS = dd.trends;
       BRANCHES = dd.branches;
