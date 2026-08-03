@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -145,7 +145,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260803"></script>
+<script src="data.js?v=20260803b"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -360,11 +360,11 @@ function getEmpOptions() {
 
 // 公共函数：收集同组人员维度值并计算min-max归一化得分和组均值
 // 返回 { dimVals: {dim: [values]}, radarScores: {dim: score}, dimAvg: {dim: avg}, personalVals: {dim: val} }
-function computeRadarScores(emp, peerNos) {
+function computeRadarScores(emp, peerNos, skipAgg) {
   var RADAR_DIMS_LIST = ['天翼发展','宽带发展','FTTR发展','融合套餐','终端合约','积分产出','高套发展','存量套改'];
   var DIM_TO_DWM = {'天翼发展':'天翼','宽带发展':'宽带','FTTR发展':null,'融合套餐':'融合套餐','终端合约':'终端合约','积分产出':'有效积分','高套发展':'新增高套','存量套改':'存量套改'};
   var dateKeys = getDateRange();
-  var isMultiDate = dateKeys.length > 1;
+  var isMultiDate = !skipAgg && dateKeys.length > 1;
   var aggEmps = isMultiDate ? getAggregatedEmployees(peerNos, dateKeys) : null;
 
   var dimVals = {};
@@ -1549,7 +1549,8 @@ function getAggregatedEmployees(staffNos, dateKeys) {
         var dwm = e.dwm ? e.dwm[bk] : null;
         a.dwm[bk].month += dwm ? dwm.month : 0;
       });
-      var rScore = computeRadarScores(e, staffNos);
+      // 单日期模式下计算雷达得分（skipAgg=true避免与getAggregatedEmployees循环递归）
+      var rScore = computeRadarScores(e, staffNos, true);
       var rKeys = Object.keys(rScore.radarScores);
       var rAvg = 0;
       rKeys.forEach(function(d) { rAvg += rScore.radarScores[d]; });
