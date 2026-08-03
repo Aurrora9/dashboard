@@ -67,6 +67,30 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
 .shortcut-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
 .filters input[type="date"] { padding:5px 6px; border:1px solid var(--border); border-radius:5px; font-size:13px; font-family:inherit; font-weight:400; outline:none; cursor:pointer; width:140px; }
 .filters input[type="date"]:focus { border-color:var(--primary); }
+/* 自定义日历选择器 */
+.cal-wrap { position:relative; display:inline-block; }
+.cal-input { padding:5px 6px; border:1px solid var(--border); border-radius:5px; font-size:13px; font-family:inherit; font-weight:400; outline:none; cursor:pointer; width:140px; background:#fff; box-sizing:border-box; }
+.cal-input:focus { border-color:var(--primary); }
+.cal-popup { display:none; position:fixed; background:#fff; border:1px solid var(--border); border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,0.18); z-index:10000; padding:12px; user-select:none; }
+.cal-popup.open { display:block; }
+.cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.cal-nav-btn { width:26px; height:26px; border:none; background:#f0f4ff; border-radius:5px; cursor:pointer; font-size:14px; color:var(--primary); display:flex; align-items:center; justify-content:center; transition:background 0.15s; }
+.cal-nav-btn:hover { background:var(--primary); color:#fff; }
+.cal-nav-title { font-size:14px; font-weight:600; color:var(--text); }
+.cal-grid { border-collapse:collapse; }
+.cal-grid th { width:32px; height:24px; font-size:11px; font-weight:500; color:var(--text2); text-align:center; }
+.cal-grid td { width:32px; height:28px; text-align:center; font-size:13px; cursor:pointer; border-radius:5px; transition:background 0.1s; }
+.cal-grid td.cal-other { color:#ccc; cursor:default; }
+.cal-grid td.cal-other:hover { background:transparent; }
+.cal-grid td.cal-empty { color:#aaa; }  /* 当月无数据 */
+.cal-grid td.cal-has { color:var(--text); font-weight:500; }  /* 当月有数据 */
+.cal-grid td.cal-has:hover, .cal-grid td.cal-empty:hover { background:var(--primary-light); }
+.cal-grid td.cal-today { border:1px solid var(--primary); }
+.cal-grid td.cal-selected { background:var(--primary); color:#fff !important; font-weight:600; }
+.cal-grid td.cal-selected:hover { background:var(--primary); }
+.cal-footer { display:flex; justify-content:space-between; margin-top:8px; padding-top:8px; border-top:1px solid #eee; }
+.cal-footer-btn { font-size:12px; padding:3px 10px; border:1px solid var(--border); border-radius:4px; background:#fff; cursor:pointer; color:var(--text2); }
+.cal-footer-btn:hover { background:#f5f5f5; color:var(--text); }
 .search-select { position:relative; display:inline-block; }
 .search-select input { width:100%; padding:5px 8px; border:1px solid var(--border); border-radius:5px; font-size:13px; outline:none; box-sizing:border-box; }
 .search-select input:focus { border-color:var(--primary); }
@@ -115,11 +139,17 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
   </div>
   <div>
     <label>起始日期:</label>
-    <input type="date" id="dateStart">
+    <div class="cal-wrap" id="calStartWrap">
+      <input type="text" id="dateStart" class="cal-input" readonly placeholder="选择日期">
+      <div class="cal-popup" id="calStartPopup"></div>
+    </div>
   </div>
   <div>
     <label>截止日期:</label>
-    <input type="date" id="dateEnd">
+    <div class="cal-wrap" id="calEndWrap">
+      <input type="text" id="dateEnd" class="cal-input" readonly placeholder="选择日期">
+      <div class="cal-popup" id="calEndPopup"></div>
+    </div>
   </div>
   <div class="date-shortcuts">
     <button class="shortcut-btn" onclick="setDateShortcut('latest')" title="最新日期">最新</button>
@@ -145,7 +175,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260803c"></script>
+<script src="data.js?v=20260803d"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -1504,10 +1534,8 @@ function exportGroupTable() {
 }
 
 function getDateRange() {
-  var startVal = document.getElementById('dateStart').value; // yyyy-MM-dd or ''
-  var endVal = document.getElementById('dateEnd').value;
-  var start = startVal ? date2ymd(startVal) : ALL_DATES[ALL_DATES.length - 1]; // 最早
-  var end = endVal ? date2ymd(endVal) : ALL_DATES[0]; // 最新
+  var start = CAL.start.value || ALL_DATES[ALL_DATES.length - 1]; // 最早
+  var end = CAL.end.value || ALL_DATES[0]; // 最新
   if (start > end) { var t = start; start = end; end = t; }
   var dates = ALL_DATES.filter(function(d) { return d >= start && d <= end; });
   // 如果选择的日期不在快照中，找最近的快照日期
@@ -1851,20 +1879,247 @@ window.addEventListener('resize', function() {
   Object.values(charts).forEach(function(c) { if (c) c.resize(); });
 });
 
+// ===================== 自定义日历选择器 =====================
+var CAL = {}; // 存储两个日历实例的状态 { start: {...}, end: {...} }
+var DATE_SET = {}; // ALL_DATES 的 Set，用于快速查找
+
+function initCalendar() {
+  // 构建 DATE_SET
+  ALL_DATES.forEach(function(d) { DATE_SET[d] = true; });
+
+  // 创建两个日历实例
+  CAL.start = createCalInstance('dateStart', 'calStartPopup', 'start');
+  CAL.end   = createCalInstance('dateEnd',   'calEndPopup',   'end');
+}
+
+function createCalInstance(inputId, popupId, role) {
+  var instance = {
+    inputId: inputId,
+    popupId: popupId,
+    role: role,          // 'start' or 'end'
+    value: '',           // yyyymmdd 格式，空字符串表示未选
+    viewYear: 0,         // 当前日历视图的年
+    viewMonth: 0,        // 当前日历视图的月 (1-12)
+    isOpen: false
+  };
+
+  var input = document.getElementById(inputId);
+  var popup = document.getElementById(popupId);
+
+  // 点击 input 弹出/关闭日历
+  input.addEventListener('click', function(e) {
+    e.stopPropagation();
+    // 关闭另一个日历
+    var otherKey = role === 'start' ? 'end' : 'start';
+    if (CAL[otherKey] && CAL[otherKey].isOpen) closeCalendar(CAL[otherKey]);
+
+    if (instance.isOpen) {
+      closeCalendar(instance);
+    } else {
+      openCalendar(instance);
+    }
+  });
+
+  // 点击其他地方关闭日历
+  document.addEventListener('click', function(e) {
+    if (!instance.isOpen) return;
+    var wrap = popup.parentElement;
+    if (!wrap.contains(e.target)) {
+      closeCalendar(instance);
+    }
+  });
+
+  return instance;
+}
+
+function openCalendar(instance) {
+  var popup = document.getElementById(instance.popupId);
+  // 初始化视图月份：如果有选中值则显示选中值所在月，否则显示最新数据月
+  if (instance.value) {
+    instance.viewYear = parseInt(instance.value.slice(0, 4));
+    instance.viewMonth = parseInt(instance.value.slice(4, 6));
+  } else {
+    var latest = ALL_DATES[0];
+    instance.viewYear = parseInt(latest.slice(0, 4));
+    instance.viewMonth = parseInt(latest.slice(4, 6));
+  }
+
+  renderCalendar(instance);
+
+  // 定位弹窗（fixed 定位，跟随 input）
+  var input = document.getElementById(instance.inputId);
+  var rect = input.getBoundingClientRect();
+  popup.style.left = rect.left + 'px';
+  popup.style.top = (rect.bottom + 4) + 'px';
+  popup.classList.add('open');
+  instance.isOpen = true;
+}
+
+function closeCalendar(instance) {
+  var popup = document.getElementById(instance.popupId);
+  popup.classList.remove('open');
+  instance.isOpen = false;
+}
+
+function renderCalendar(instance) {
+  var popup = document.getElementById(instance.popupId);
+  var y = instance.viewYear;
+  var m = instance.viewMonth; // 1-12
+  var monthKey = String(y) + String(m).padStart(2, '0');
+  var monthStr = y + '年' + m + '月';
+
+  // 今天
+  var today = new Date();
+  var todayYmd = String(today.getFullYear()) + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
+
+  // 选中值
+  var selYmd = instance.value;
+
+  // 计算当月第一天是星期几（0=日, 1=一, ...）
+  var firstDay = new Date(y, m - 1, 1).getDay();
+  // 转换为周一起始：0(日)->6, 1(一)->0, 2(二)->1 ...
+  var startOffset = (firstDay + 6) % 7;
+  // 当月天数
+  var daysInMonth = new Date(y, m, 0).getDate();
+  // 上月天数（用于显示灰色日期）
+  var prevDaysInMonth = new Date(y, m - 1, 0).getDate();
+
+  var html = '';
+  html += '<div class="cal-nav">';
+  html += '<button class="cal-nav-btn" onclick="calNav(event, \''+ instance.role +'\', -1)">&#9664;</button>';
+  html += '<span class="cal-nav-title">' + monthStr + '</span>';
+  html += '<button class="cal-nav-btn" onclick="calNav(event, \''+ instance.role +'\', 1)">&#9654;</button>';
+  html += '</div>';
+  html += '<table class="cal-grid"><thead><tr>';
+  ['一','二','三','四','五','六','日'].forEach(function(w) {
+    html += '<th>' + w + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  // 生成 6 行 = 42 格
+  var dayCount = 0;
+  for (var row = 0; row < 6; row++) {
+    html += '<tr>';
+    for (var col = 0; col < 7; col++) {
+      var dayNum, cellY, cellM, isOther = false;
+      if (row === 0 && col < startOffset) {
+        // 上月日期
+        dayNum = prevDaysInMonth - (startOffset - 1 - col);
+        if (m === 1) { cellY = y - 1; cellM = 12; }
+        else { cellY = y; cellM = m - 1; }
+        isOther = true;
+      } else if (dayCount >= daysInMonth) {
+        // 下月日期
+        dayNum = dayCount - daysInMonth + 1;
+        if (m === 12) { cellY = y + 1; cellM = 1; }
+        else { cellY = y; cellM = m + 1; }
+        isOther = true;
+        dayCount++;
+      } else {
+        dayCount++;
+        dayNum = dayCount;
+        cellY = y;
+        cellM = m;
+      }
+
+      var cellYmd = String(cellY) + String(cellM).padStart(2, '0') + String(dayNum).padStart(2, '0');
+      var classes = [];
+      if (isOther) {
+        classes.push('cal-other');
+      } else if (DATE_SET[cellYmd]) {
+        classes.push('cal-has');
+      } else {
+        classes.push('cal-empty');
+      }
+      if (cellYmd === todayYmd) classes.push('cal-today');
+      if (selYmd && cellYmd === selYmd) classes.push('cal-selected');
+
+      html += '<td class="' + classes.join(' ') + '"';
+      if (!isOther) {
+        html += ' onclick="calPick(event, \''+ instance.role +'\', \''+ cellYmd +'\')"';
+      }
+      html += '>' + dayNum + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  html += '<div class="cal-footer">';
+  html += '<button class="cal-footer-btn" onclick="calClear(event, \''+ instance.role +'\')">清除</button>';
+  html += '<button class="cal-footer-btn" onclick="calToday(event, \''+ instance.role +'\')">今天</button>';
+  html += '</div>';
+
+  popup.innerHTML = html;
+}
+
+// 月份导航
+function calNav(e, role, delta) {
+  e.stopPropagation();
+  var inst = CAL[role];
+  inst.viewMonth += delta;
+  if (inst.viewMonth > 12) { inst.viewYear++; inst.viewMonth = 1; }
+  if (inst.viewMonth < 1) { inst.viewYear--; inst.viewMonth = 12; }
+  renderCalendar(inst);
+}
+
+// 选择日期
+function calPick(e, role, ymd) {
+  e.stopPropagation();
+  var inst = CAL[role];
+  inst.value = ymd;
+  var input = document.getElementById(inst.inputId);
+  input.value = ymd2date(ymd);
+  closeCalendar(inst);
+
+  // 日期校验：起始 ≤ 截止，否则自动纠正
+  validateDateRange();
+
+  // 取消快捷按钮高亮
+  document.querySelectorAll('.shortcut-btn').forEach(function(b) { b.classList.remove('active'); });
+}
+
+// 清除日期
+function calClear(e, role) {
+  e.stopPropagation();
+  var inst = CAL[role];
+  inst.value = '';
+  document.getElementById(inst.inputId).value = '';
+  closeCalendar(inst);
+  document.querySelectorAll('.shortcut-btn').forEach(function(b) { b.classList.remove('active'); });
+}
+
+// 跳到今天
+function calToday(e, role) {
+  e.stopPropagation();
+  var inst = CAL[role];
+  var today = new Date();
+  inst.viewYear = today.getFullYear();
+  inst.viewMonth = today.getMonth() + 1;
+  renderCalendar(inst);
+}
+
+// 日期校验：起始 ≤ 截止，否则自动纠正
+function validateDateRange() {
+  if (CAL.start.value && CAL.end.value && CAL.start.value > CAL.end.value) {
+    // 自动交换
+    var tmp = CAL.start.value;
+    CAL.start.value = CAL.end.value;
+    CAL.end.value = tmp;
+    document.getElementById(CAL.start.inputId).value = ymd2date(CAL.start.value);
+    document.getElementById(CAL.end.inputId).value = ymd2date(CAL.end.value);
+  }
+}
+
+// ===================== 日历选择器结束 =====================
+
 function init() {
-  // 日期范围选择器 - 改为 input[type=date]
-  var dsInput = document.getElementById('dateStart');
-  var deInput = document.getElementById('dateEnd');
-  // 将 ALL_DATES 中最早的和最新的转为 yyyy-MM-dd 格式设置
-  var minDate = ALL_DATES[ALL_DATES.length - 1]; // 最早 yyyymmdd
-  var maxDate = ALL_DATES[0]; // 最新 yyyymmdd
-  dsInput.min = ymd2date(minDate);
-  dsInput.max = ymd2date(maxDate);
-  deInput.min = ymd2date(minDate);
-  deInput.max = ymd2date(maxDate);
+  // 初始化日历选择器
+  initCalendar();
   // 默认起始日期=最新，截止日期=最新
-  dsInput.value = ymd2date(maxDate);
-  deInput.value = ymd2date(maxDate);
+  var maxDate = ALL_DATES[0]; // 最新 yyyymmdd
+  CAL.start.value = maxDate;
+  CAL.end.value = maxDate;
+  document.getElementById('dateStart').value = ymd2date(maxDate);
+  document.getElementById('dateEnd').value = ymd2date(maxDate);
 
   // 加载默认日期数据
   switchDate();
@@ -1882,17 +2137,18 @@ function date2ymd(s) { return s.replace(/-/g, ''); }
 // 日期快捷按钮
 function setDateShortcut(type) {
   var latest = ALL_DATES[0]; // yyyymmdd
-  var deInput = document.getElementById('dateEnd');
-  var dsInput = document.getElementById('dateStart');
-  deInput.value = ymd2date(latest);
+  CAL.end.value = latest;
+  document.getElementById('dateEnd').value = ymd2date(latest);
 
   if (type === 'latest') {
-    dsInput.value = ymd2date(latest);
+    CAL.start.value = latest;
+    document.getElementById('dateStart').value = ymd2date(latest);
   } else if (type === 'thisMonth') {
     var thisMonth = latest.slice(0,6);
     var monthDates = ALL_DATES.filter(function(d) { return d.slice(0,6) === thisMonth; });
     var start = monthDates.length > 0 ? monthDates[monthDates.length - 1] : latest;
-    dsInput.value = ymd2date(start);
+    CAL.start.value = start;
+    document.getElementById('dateStart').value = ymd2date(start);
   } else if (type === 'lastMonth') {
     var lastM = latest.slice(0,6);
     var ly = parseInt(lastM.slice(0,4));
@@ -1901,10 +2157,13 @@ function setDateShortcut(type) {
     var lastMonthKey = String(ly) + String(lm).padStart(2,'0');
     var monthDates = ALL_DATES.filter(function(d) { return d.slice(0,6) === lastMonthKey; });
     if (monthDates.length > 0) {
-      dsInput.value = ymd2date(monthDates[monthDates.length - 1]);
-      deInput.value = ymd2date(monthDates[0]);
+      CAL.start.value = monthDates[monthDates.length - 1];
+      CAL.end.value = monthDates[0];
+      document.getElementById('dateStart').value = ymd2date(monthDates[monthDates.length - 1]);
+      document.getElementById('dateEnd').value = ymd2date(monthDates[0]);
     } else {
-      dsInput.value = ymd2date(latest);
+      CAL.start.value = latest;
+      document.getElementById('dateStart').value = ymd2date(latest);
     }
   } else if (type === 'last3m') {
     var latestY = parseInt(latest.slice(0,4));
@@ -1914,7 +2173,8 @@ function setDateShortcut(type) {
     var startKey = String(latestY) + String(latestM).padStart(2,'0');
     var monthDates = ALL_DATES.filter(function(d) { return d.slice(0,6) >= startKey; });
     if (monthDates.length > 0) {
-      dsInput.value = ymd2date(monthDates[monthDates.length - 1]);
+      CAL.start.value = monthDates[monthDates.length - 1];
+      document.getElementById('dateStart').value = ymd2date(monthDates[monthDates.length - 1]);
     }
   }
 
