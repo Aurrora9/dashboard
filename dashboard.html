@@ -213,10 +213,8 @@ function switchDate() {
   }
   // 恢复人员选择
   if (prevStaff && EMPLOYEES[prevStaff]) {
-    var frozenTag = EMPLOYEES[prevStaff].suspected_frozen ? ' [冻结]' : '';
-    document.getElementById('employeeSelect')._selectedVal = prevStaff;
-    document.getElementById('employeeSelect')._displayLabel = prevStaff + ' ' + EMPLOYEES[prevStaff].staff_nm + frozenTag;
-    document.getElementById('employeeSelect').value = prevStaff + ' ' + EMPLOYEES[prevStaff].staff_nm + frozenTag;
+    document.getElementById('employeeSelect')._displayLabel = prevStaff + ' ' + EMPLOYEES[prevStaff].staff_nm;
+    document.getElementById('employeeSelect').value = prevStaff + ' ' + EMPLOYEES[prevStaff].staff_nm;
     renderDashboard(EMPLOYEES[prevStaff], prevStaff);
   } else {
     document.getElementById('employeeSelect').value = '';
@@ -242,8 +240,7 @@ function rebuildFilters() {
   var empItems = [{val:'', label:'全部'}];
   Object.keys(EMPLOYEES).forEach(function(k) {
     var e = EMPLOYEES[k];
-    var frozenTag = e.suspected_frozen ? ' [冻结]' : '';
-    empItems.push({val: k, label: k + ' ' + e.staff_nm + frozenTag});
+    empItems.push({val: k, label: k + ' ' + e.staff_nm});
   });
   window._empOptions = empItems;
 }
@@ -251,10 +248,9 @@ function rebuildFilters() {
 // ====== 自定义可搜索下拉组件 ======
 function selectEmployee(staffNo) {
   var input = document.getElementById('employeeSelect');
-  var frozenTag = EMPLOYEES[staffNo].suspected_frozen ? ' [冻结]' : '';
   input._selectedVal = staffNo;
-  input._displayLabel = staffNo + ' ' + EMPLOYEES[staffNo].staff_nm + frozenTag;
-  input.value = staffNo + ' ' + EMPLOYEES[staffNo].staff_nm + frozenTag;
+  input._displayLabel = staffNo + ' ' + EMPLOYEES[staffNo].staff_nm;
+  input.value = staffNo + ' ' + EMPLOYEES[staffNo].staff_nm;
   doQuery();
 }
 
@@ -400,10 +396,9 @@ function doQuery() {
     // 恢复员工选择
     var empVal = prevEmp;
     if (empVal && EMPLOYEES[empVal]) {
-      var frozenTag = EMPLOYEES[empVal].suspected_frozen ? ' [冻结]' : '';
       document.getElementById('employeeSelect')._selectedVal = empVal;
-      document.getElementById('employeeSelect')._displayLabel = empVal + ' ' + EMPLOYEES[empVal].staff_nm + frozenTag;
-      document.getElementById('employeeSelect').value = empVal + ' ' + EMPLOYEES[empVal].staff_nm + frozenTag;
+      document.getElementById('employeeSelect')._displayLabel = empVal + ' ' + EMPLOYEES[empVal].staff_nm;
+      document.getElementById('employeeSelect').value = empVal + ' ' + EMPLOYEES[empVal].staff_nm;
     }
   }
 
