@@ -1,5 +1,5 @@
 // Service Worker for 业务分析仪表盘
-var CACHE_NAME = 'biz-dashboard-v1';
+var CACHE_NAME = 'biz-dashboard-v20260803';
 var urlsToCache = [
   './dashboard.html',
   './manifest.json',

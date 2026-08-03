@@ -445,6 +445,11 @@ function doQuery() {
       document.getElementById('employeeSelect')._selectedVal = empVal;
       document.getElementById('employeeSelect')._displayLabel = empVal + ' ' + EMPLOYEES[empVal].staff_nm;
       document.getElementById('employeeSelect').value = empVal + ' ' + EMPLOYEES[empVal].staff_nm;
+    } else if (empVal) {
+      // 人员在新日期数据中不存在，清空选择
+      document.getElementById('employeeSelect')._selectedVal = '';
+      document.getElementById('employeeSelect')._displayLabel = '';
+      document.getElementById('employeeSelect').value = '';
     }
   }
 
@@ -454,6 +459,10 @@ function doQuery() {
     staffNo = empVal;
     currentStaff = staffNo;
     renderDashboard(EMPLOYEES[staffNo], staffNo);
+  } else if (empVal && !EMPLOYEES[empVal]) {
+    // 选了人员但该人员不在当前日期数据中
+    currentStaff = '';
+    document.getElementById('dashboard').innerHTML = '<div class="empty-state"><h2>暂无数据</h2><p>该人员当前日期范围内无数据，请更换日期或重新选择人员</p></div>';
   } else {
     // 群体视图：按筛选条件汇总
     renderGroupDashboard();
