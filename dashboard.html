@@ -20,10 +20,15 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
 .header { background: linear-gradient(135deg, #1a73e8, #0d47a1); color:#fff; padding:16px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
 .header h1 { font-size:22px; font-weight:600; }
 .header-info { display:flex; gap:16px; align-items:center; font-size:14px; }
-.filters { background:#fff; padding:12px 24px; border-bottom:1px solid var(--border); display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-.filters label { font-size:13px; color:var(--text2); margin-right:4px; }
-.filters select, .filters input { padding:6px 12px; border:1px solid var(--border); border-radius:6px; font-size:14px; outline:none; }
+.filters { background:#fff; padding:10px 20px; border-bottom:1px solid var(--border); display:flex; gap:8px; flex-wrap:nowrap; align-items:center; overflow-x:auto; }
+.filters label { font-size:12px; color:var(--text2); margin-right:2px; white-space:nowrap; }
+.filters select, .filters input { padding:5px 8px; border:1px solid var(--border); border-radius:5px; font-size:13px; outline:none; }
 .filters select:focus, .filters input:focus { border-color:var(--primary); }
+.filters > div { display:flex; align-items:center; gap:2px; flex-shrink:0; }
+.filters .spacer { flex:1 1 0; min-width:8px; }
+.filters select { max-width:90px; }
+#branchSelect { width:100px; }
+#empSelect { width:200px; }
 .dashboard { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:16px 24px; max-width:1600px; margin:0 auto; }
 .card { background:var(--card); border-radius:10px; box-shadow:var(--shadow); padding:20px; }
 .card-full { grid-column:1/-1; }
@@ -56,17 +61,17 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
 #queryBtn:hover { background:#1557b0; }
 #exportBtn { padding:4px 14px; background:#34a853; color:#fff; border:none; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600; margin-left:4px; white-space:nowrap; }
 #exportBtn:hover { background:#2d9249; }
-.date-shortcuts { display:flex; gap:4px; align-items:center; }
-.shortcut-btn { padding:4px 10px; background:#f0f4ff; color:var(--primary); border:1px solid #c8d8f8; border-radius:5px; font-size:12px; font-family:inherit; font-weight:400; cursor:pointer; white-space:nowrap; transition:all 0.2s; }
+.date-shortcuts { display:flex; gap:3px; align-items:center; flex-shrink:0; }
+.shortcut-btn { padding:3px 8px; background:#f0f4ff; color:var(--primary); border:1px solid #c8d8f8; border-radius:4px; font-size:11px; font-family:inherit; font-weight:400; cursor:pointer; white-space:nowrap; transition:all 0.2s; }
 .shortcut-btn:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
 .shortcut-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
-.filters input[type="date"] { padding:6px 10px; border:1px solid var(--border); border-radius:6px; font-size:14px; font-family:inherit; font-weight:400; outline:none; cursor:pointer; }
+.filters input[type="date"] { padding:5px 6px; border:1px solid var(--border); border-radius:5px; font-size:13px; font-family:inherit; font-weight:400; outline:none; cursor:pointer; width:140px; }
 .filters input[type="date"]:focus { border-color:var(--primary); }
 .search-select { position:relative; display:inline-block; }
-.search-select input { width:100%; padding:6px 12px; border:1px solid var(--border); border-radius:6px; font-size:14px; outline:none; box-sizing:border-box; }
+.search-select input { width:100%; padding:5px 8px; border:1px solid var(--border); border-radius:5px; font-size:13px; outline:none; box-sizing:border-box; }
 .search-select input:focus { border-color:var(--primary); }
-#branchSelect { width:130px; }
-#empSelect { width:220px; }
+#branchSelect { width:100px; }
+#empSelect { width:200px; }
 .search-select-dropdown { display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border); border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,0.15); max-height:260px; overflow-y:auto; z-index:1000; margin-top:2px; }
 .search-select-dropdown.open { display:block; }
 .search-select-item { padding:7px 12px; font-size:13px; cursor:pointer; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -129,6 +134,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
       <div class="search-select-dropdown" id="empDropdown"></div>
     </div>
   </div>
+  <div class="spacer"></div>
   <div>
     <button id="queryBtn" onclick="doQuery()">查询</button>
   </div>
