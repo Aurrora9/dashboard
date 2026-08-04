@@ -175,7 +175,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260804g"></script>
+<script src="data.js?v=20260804h"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -261,11 +261,35 @@ function ensureDateMeta(dd) {
     return {};
   }
 
+  // 获取员工的mom_yoy数据：当前日期没有时，从最近的含mom_yoy数据的日期回退查找
+  function getMomYoyForStaff(dateStr, staffNo) {
+    var dd = ALL_DATE_DATA[dateStr];
+    if (dd && dd.employees && dd.employees[staffNo] && dd.employees[staffNo].mom_yoy) {
+      return dd.employees[staffNo].mom_yoy;
+    }
+    var sortedDates = Object.keys(ALL_DATE_DATA).sort().reverse();
+    for (var i = 0; i < sortedDates.length; i++) {
+      if (sortedDates[i] === dateStr) continue;
+      var altDd = ALL_DATE_DATA[sortedDates[i]];
+      if (altDd && altDd.employees && altDd.employees[staffNo] && altDd.employees[staffNo].mom_yoy) {
+        return altDd.employees[staffNo].mom_yoy;
+      }
+    }
+    return null;
+  }
+
   function switchDate() {
   var dd = ALL_DATE_DATA[currentDate];
   ensureDateMeta(dd);
   EMPLOYEES = dd.employees;
   TRENDS = getTrendsForDate(currentDate);
+  // 补充mom_yoy：当前日期可能没有环比同比数据，从最近日期回退获取
+  Object.keys(EMPLOYEES).forEach(function(k) {
+    if (!EMPLOYEES[k].mom_yoy) {
+      var my = getMomYoyForStaff(currentDate, k);
+      if (my) EMPLOYEES[k].mom_yoy = my;
+    }
+  });
   BRANCHES = dd.branches;
   STORE_CATEGORIES = dd.store_categories;
   STAFF_CATEGORIES = dd.staff_categories;
@@ -470,6 +494,13 @@ function doQuery() {
       ensureDateMeta(dd);
       EMPLOYEES = dd.employees;
       TRENDS = getTrendsForDate(currentDate);
+      // 补充mom_yoy：当前日期可能没有环比同比数据，从最近日期回退获取
+      Object.keys(EMPLOYEES).forEach(function(k) {
+        if (!EMPLOYEES[k].mom_yoy) {
+          var my = getMomYoyForStaff(currentDate, k);
+          if (my) EMPLOYEES[k].mom_yoy = my;
+        }
+      });
       BRANCHES = dd.branches;
       STORE_CATEGORIES = dd.store_categories;
       STAFF_CATEGORIES = dd.staff_categories;
@@ -1588,6 +1619,13 @@ function getAggregatedEmployees(staffNos, dateKeys) {
       if (!allData[k]) {
         allData[k] = { staff_nm: e.staff_nm, store_name: e.store_name, store_type: e.store_type, staff_category: e.staff_category, branch: e.branch, filter_group: e.filter_group, dwm: {}, scoreSum: 0, scoreCnt: 0, training: '', suspected_frozen: false, _frozenCount: 0 };
         BIZ_KEYS.forEach(function(bk) { allData[k].dwm[bk] = { day: 0, week: 0, month: 0 }; });
+        // 复制mom_yoy（环比同比），优先从当前员工取，没有则回退查找
+        if (e.mom_yoy) {
+          allData[k].mom_yoy = e.mom_yoy;
+        } else {
+          var my = getMomYoyForStaff(d, k);
+          if (my) allData[k].mom_yoy = my;
+        }
       }
       var a = allData[k];
 
