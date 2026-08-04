@@ -175,7 +175,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260804h"></script>
+<script src="data.js?v=20260804i"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -1929,7 +1929,56 @@ function renderTraining(emp) {
   }
 
   html += '<div style="margin-top:8px"><b>针对性培训建议：</b></div>';
-  html += emp.training;
+  // 动态生成培训建议：根据薄弱和持平领域，按差距排序
+  var trainTips = {
+    '积分产出': '整体积分产出偏低，建议加强套餐捆绑销售培训，提升开口率和转化率，重点关注高积分业务的占比提升。',
+    '天翼发展': '天翼新增偏弱，建议加强天翼套餐卖点培训和开口率，学习主推套餐话术和竞对对比分析。',
+    '宽带发展': '宽带发展不足，建议加强宽带融合套餐培训，提升装维协同和主动营销意识，结合存量宽带提速升级推进。',
+    'FTTR发展': 'FTTR发展落后，建议加强FTTR全屋光纤产品演示培训，重点学习FTTR与宽带的差异化卖点及场景化推荐。',
+    '融合套餐': '融合套餐发展不足，建议加强融合套餐组合培训，重点练习多业务融合推荐话术和场景。',
+    '终端合约': '终端合约偏少，建议加强终端销售和合约搭配培训，重点学习热门终端特点和合约优惠方案。',
+    '高套发展': '高套发展不足，建议加强高套产品培训，提升档次推荐和升级引导能力，结合客户消费水平精准推荐。',
+    '存量套改': '存量套改偏弱，建议加强存量客户经营培训，重点学习存量客户需求挖掘和套餐升级话术。'
+  };
+  var trainItems = [];
+  // 薄弱领域按差距从大到小排序
+  var sortedWeaks = weaks.slice().sort(function(a, b) {
+    var gapA = a.av - a.pv;
+    var gapB = b.av - b.pv;
+    return gapB - gapA;
+  });
+  sortedWeaks.forEach(function(w) {
+    var gap = w.av - w.pv;
+    var gapPct = w.av > 0 ? Math.round(gap / w.av * 100) : 100;
+    trainItems.push({
+      dim: w.dim,
+      label: '薄弱',
+      color: '#ea4335',
+      detail: '得分' + fmtNum(w.pv) + '，低于均值' + fmtNum(w.av) + '（差距' + gapPct + '%）',
+      tip: trainTips[w.dim] || '建议加强该领域专项培训。'
+    });
+  });
+  // 持平领域也给出提升建议
+  midRange.forEach(function(m) {
+    trainItems.push({
+      dim: m.dim,
+      label: '持平',
+      color: '#1a73e8',
+      detail: '得分' + fmtNum(m.pv) + '，与均值' + fmtNum(m.av) + '持平',
+      tip: trainTips[m.dim] ? trainTips[m.dim].replace(/偏低|偏弱|不足|落后|偏少/g, '有提升空间') : '建议保持并寻求突破。'
+    });
+  });
+  if (trainItems.length === 0) {
+    html += '<div style="font-size:13px;color:var(--text2);margin-top:4px;">各领域均优于均值，建议保持优势，持续提升薄弱项。</div>';
+  } else {
+    trainItems.forEach(function(item) {
+      html += '<div style="margin-top:8px;padding:8px 12px;background:#fff;border-radius:6px;border-left:3px solid ' + item.color + ';">';
+      html += '<div style="font-size:13px;font-weight:600;color:' + item.color + ';">【' + item.label + '】' + item.dim + '</div>';
+      html += '<div style="font-size:11px;color:var(--text2);margin-top:2px;">' + item.detail + '</div>';
+      html += '<div style="font-size:12px;color:var(--text);margin-top:4px;line-height:1.6;">' + item.tip + '</div>';
+      html += '</div>';
+    });
+  }
   box.innerHTML = html;
 }
 
