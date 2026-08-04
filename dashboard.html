@@ -175,7 +175,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260804f"></script>
+<script src="data.js?v=20260804g"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -241,11 +241,31 @@ function ensureDateMeta(dd) {
     }
   }
 
+  // 获取趋势数据：当前日期没有时，从最近的含趋势数据的日期回退查找
+  function getTrendsForDate(dateStr) {
+    var dd = ALL_DATE_DATA[dateStr];
+    if (dd) {
+      ensureDateMeta(dd);
+      if (dd.trends && Object.keys(dd.trends).length > 0) return dd.trends;
+    }
+    // 当前日期没有趋势数据，从最近的日期查找
+    var sortedDates = Object.keys(ALL_DATE_DATA).sort().reverse();
+    for (var i = 0; i < sortedDates.length; i++) {
+      if (sortedDates[i] === dateStr) continue;
+      var altDd = ALL_DATE_DATA[sortedDates[i]];
+      if (altDd) {
+        ensureDateMeta(altDd);
+        if (altDd.trends && Object.keys(altDd.trends).length > 0) return altDd.trends;
+      }
+    }
+    return {};
+  }
+
   function switchDate() {
   var dd = ALL_DATE_DATA[currentDate];
   ensureDateMeta(dd);
   EMPLOYEES = dd.employees;
-  TRENDS = dd.trends;
+  TRENDS = getTrendsForDate(currentDate);
   BRANCHES = dd.branches;
   STORE_CATEGORIES = dd.store_categories;
   STAFF_CATEGORIES = dd.staff_categories;
@@ -449,7 +469,7 @@ function doQuery() {
     if (dd) {
       ensureDateMeta(dd);
       EMPLOYEES = dd.employees;
-      TRENDS = dd.trends;
+      TRENDS = getTrendsForDate(currentDate);
       BRANCHES = dd.branches;
       STORE_CATEGORIES = dd.store_categories;
       STAFF_CATEGORIES = dd.staff_categories;
