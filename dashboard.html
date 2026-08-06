@@ -175,7 +175,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260805a"></script>
+<script src="data.js?v=20260806a"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -1629,10 +1629,10 @@ function getAggregatedEmployees(staffNos, dateKeys) {
       }
       var a = allData[k];
 
-      // 业务值取合计
+      // 业务值取合计：多日期用day（日增量）累加，而非month（月累计）重复相加
       BIZ_KEYS.forEach(function(bk) {
         var dwm = e.dwm ? e.dwm[bk] : null;
-        a.dwm[bk].month += dwm ? dwm.month : 0;
+        a.dwm[bk].month += dwm ? (dwm.day || 0) : 0;
       });
       // 单日期模式下计算雷达得分（skipAgg=true避免与getAggregatedEmployees循环递归）
       var rScore = computeRadarScores(e, staffNos, true);
