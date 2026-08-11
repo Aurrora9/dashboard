@@ -175,7 +175,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260811a"></script>
+<script src="data.js?v=20260811b"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -323,12 +323,35 @@ function ensureDateMeta(dd) {
   }
 }
 
+// 门店类型兼容匹配：选直管店时也包含直管店（支局主厅），选合作店时也包含合作店（支局主厅），选支局主厅时包含两种（支局主厅）
+function matchStoreType(filterVal, empType) {
+  if (!filterVal) return true;
+  if (empType === filterVal) return true;
+  // 选「直管店」时，也包含「直管店（支局主厅）」
+  if (filterVal === '直管店' && empType === '直管店（支局主厅）') return true;
+  // 选「合作店」时，也包含「合作店（支局主厅）」
+  if (filterVal === '合作店' && empType === '合作店（支局主厅）') return true;
+  // 选「支局主厅」时，包含直管店（支局主厅）和合作店（支局主厅）
+  if (filterVal === '支局主厅' && (empType === '直管店（支局主厅）' || empType === '合作店（支局主厅）')) return true;
+  return false;
+}
+
 function rebuildFilters() {
   var scSel = document.getElementById('storeCatFilter');
   var sfSel = document.getElementById('staffCatFilter');
   scSel.innerHTML = '<option value="">全部</option>';
   sfSel.innerHTML = '<option value="">全部</option>';
-  STORE_CATEGORIES.forEach(function(s) { var o = document.createElement('option'); o.value=s; o.textContent=s; scSel.appendChild(o); });
+  // 门店类型：使用规范选项（合并子类型），而非原始 store_categories
+  var scOpts = ['中心厅','直管店','合作店','商圈店','支局主厅'];
+  scOpts.forEach(function(s) {
+    // 只添加数据中实际存在的类型
+    if (STORE_CATEGORIES.indexOf(s) >= 0 ||
+        (s === '直管店' && STORE_CATEGORIES.indexOf('直管店（支局主厅）') >= 0) ||
+        (s === '合作店' && STORE_CATEGORIES.indexOf('合作店（支局主厅）') >= 0) ||
+        (s === '支局主厅' && (STORE_CATEGORIES.indexOf('直管店（支局主厅）') >= 0 || STORE_CATEGORIES.indexOf('合作店（支局主厅）') >= 0))) {
+      var o = document.createElement('option'); o.value=s; o.textContent=s; scSel.appendChild(o);
+    }
+  });
   STAFF_CATEGORIES.forEach(function(s) { var o = document.createElement('option'); o.value=s; o.textContent=s; sfSel.appendChild(o); });
   // 清空支局和人员输入框
   document.getElementById('branchFilter').value = '';
@@ -566,9 +589,9 @@ function getPeerStaffNos(emp) {
 
   var peers = Object.keys(EMPLOYEES);
 
-  // 门店类型：如果选了特定类型，同组就是该类型内；否则按员工自己的门店分类ym
+  // 门店类型：如果选了特定类型，同组就是该类型内（含子类型）；否则按员工自己的门店分类ym
   if (scFilter) {
-    peers = peers.filter(function(k) { return EMPLOYEES[k].filter_group === scFilter; });
+    peers = peers.filter(function(k) { return matchStoreType(scFilter, EMPLOYEES[k].filter_group); });
   } else {
     peers = peers.filter(function(k) { return EMPLOYEES[k].filter_group === emp.filter_group; });
   }
@@ -650,7 +673,7 @@ function getFilteredStaffNos() {
   var sfFilter = document.getElementById('staffCatFilter').value;
   var brFilter = document.getElementById('branchFilter')._selectedVal || '';
   var staffNos = Object.keys(EMPLOYEES);
-  if (scFilter) staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].filter_group === scFilter; });
+  if (scFilter) staffNos = staffNos.filter(function(k) { return matchStoreType(scFilter, EMPLOYEES[k].filter_group); });
   if (sfFilter) staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].staff_category === sfFilter; });
   if (brFilter) staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].branch === brFilter; });
   return staffNos;
