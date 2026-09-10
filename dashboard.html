@@ -131,7 +131,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     </select>
   </div>
   <div>
-    <label>客运专员:</label>
+    <label>角色:</label>
     <select id="roleFilter">
       <option value="">全部</option>
     </select>
@@ -181,7 +181,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260910c"></script>
+<script src="data.js?v=20260910d"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -356,7 +356,7 @@ function rebuildFilters() {
   scSel.innerHTML = '<option value="">全部</option>';
   sfSel.innerHTML = '<option value="">全部</option>';
   roleSel.innerHTML = '<option value="">全部</option>';
-  // 客运专员筛选器：全部 / 客运专员 / 非客运专员
+  // 角色筛选器：全部 / 客运专员 / 非客运专员（固定三项，不从数据重复提取）
   roleSel.appendChild(new Option('客运专员', '客运专员'));
   roleSel.appendChild(new Option('非客运专员', '!客运专员'));
   // 门店类型：使用规范选项（合并子类型），而非原始 store_categories
@@ -371,7 +371,6 @@ function rebuildFilters() {
     }
   });
   STAFF_CATEGORIES.forEach(function(s) { var o = document.createElement('option'); o.value=s; o.textContent=s; sfSel.appendChild(o); });
-  ROLE_CATEGORIES.forEach(function(s) { var o = document.createElement('option'); o.value=s; o.textContent=s; roleSel.appendChild(o); });
   // 清空支局和人员输入框
   document.getElementById('branchFilter').value = '';
   document.getElementById('branchFilter')._selectedVal = '';
