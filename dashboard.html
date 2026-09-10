@@ -207,7 +207,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260910f"></script>
+<script src="data.js?v=20260910g"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -413,7 +413,8 @@ function rebuildFilters() {
   // 门店类型多选组件：重建选项并保留已选值
   window._storeCatOptions = getStoreTypeOptions();
   var dropdown = document.getElementById('storeCatDropdown');
-  if (dropdown) {
+  if (dropdown && !dropdown.classList.contains('open')) {
+    // 面板关闭时才重建HTML；面板打开时只更新勾选状态，避免重建导致面板闪烁/关闭
     var opts = getStoreTypeOptions();
     var html = '<div class="ms-actions"><a onclick="storeCatSelectAll()">全选</a><a onclick="storeCatClearAll()">清空</a></div>';
     opts.forEach(function(o) {
@@ -423,6 +424,16 @@ function rebuildFilters() {
     dropdown.innerHTML = html;
     var lbl = document.getElementById('storeCatLabel');
     if (lbl) lbl.textContent = storeCatLabel();
+  } else if (dropdown && dropdown.classList.contains('open')) {
+    // 面板打开时只更新勾选状态
+    var items = dropdown.querySelectorAll('.ms-item');
+    items.forEach(function(it) {
+      var v = it.getAttribute('data-val');
+      if (storeCatSelected.indexOf(v) >= 0) { it.classList.add('checked'); }
+      else { it.classList.remove('checked'); }
+    });
+    var lbl2 = document.getElementById('storeCatLabel');
+    if (lbl2) lbl2.textContent = storeCatLabel();
   }
   STAFF_CATEGORIES.forEach(function(s) { var o = document.createElement('option'); o.value=s; o.textContent=s; sfSel.appendChild(o); });
   // 清空支局和人员输入框
@@ -497,13 +508,24 @@ function initStoreCatMulti() {
   });
 
   dropdown.addEventListener('click', function(e) {
+    e.stopPropagation();
     var item = e.target.closest('.ms-item');
     if (!item) return;
     var val = item.getAttribute('data-val');
     var idx = storeCatSelected.indexOf(val);
     if (idx >= 0) storeCatSelected.splice(idx, 1);
     else storeCatSelected.push(val);
-    render();
+    // 只更新勾选状态，不重建整个面板（避免 doQuery 触发 rebuildFilters 覆盖 DOM）
+    var items = dropdown.querySelectorAll('.ms-item');
+    items.forEach(function(it) {
+      var v = it.getAttribute('data-val');
+      if (storeCatSelected.indexOf(v) >= 0) {
+        it.classList.add('checked');
+      } else {
+        it.classList.remove('checked');
+      }
+    });
+    label.textContent = storeCatLabel();
     doQuery();
   });
 
@@ -519,11 +541,19 @@ function initStoreCatMulti() {
 function storeCatSelectAll() {
   storeCatSelected = getStoreTypeOptions().slice();
   document.getElementById('storeCatLabel').textContent = storeCatLabel();
+  var dd = document.getElementById('storeCatDropdown');
+  if (dd) {
+    dd.querySelectorAll('.ms-item').forEach(function(it) { it.classList.add('checked'); });
+  }
   doQuery();
 }
 function storeCatClearAll() {
   storeCatSelected = [];
   document.getElementById('storeCatLabel').textContent = '全部';
+  var dd = document.getElementById('storeCatDropdown');
+  if (dd) {
+    dd.querySelectorAll('.ms-item').forEach(function(it) { it.classList.remove('checked'); });
+  }
   doQuery();
 }
 
@@ -710,7 +740,7 @@ function doQuery() {
       var _lbl = document.getElementById('storeCatLabel');
       if (_lbl) _lbl.textContent = storeCatLabel();
       var _dd = document.getElementById('storeCatDropdown');
-      if (_dd) {
+      if (_dd && !_dd.classList.contains('open')) {
         var _opts = getStoreTypeOptions();
         var _html = '<div class="ms-actions"><a onclick="storeCatSelectAll()">全选</a><a onclick="storeCatClearAll()">清空</a></div>';
         _opts.forEach(function(o) {
@@ -718,6 +748,13 @@ function doQuery() {
           _html += '<div class="ms-item' + _c + '" data-val="' + o + '"><span class="ms-check"></span>' + o + '</div>';
         });
         _dd.innerHTML = _html;
+      } else if (_dd && _dd.classList.contains('open')) {
+        // 面板打开时只更新勾选状态
+        _dd.querySelectorAll('.ms-item').forEach(function(it) {
+          var v = it.getAttribute('data-val');
+          if (storeCatSelected.indexOf(v) >= 0) { it.classList.add('checked'); }
+          else { it.classList.remove('checked'); }
+        });
       }
     } else {
       storeCatSelected = [];
