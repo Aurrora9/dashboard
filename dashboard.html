@@ -102,6 +102,28 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
 .search-select-item:hover { background:var(--primary-light); color:var(--primary); }
 .search-select-item.active { background:var(--primary); color:#fff; }
 .search-select-empty { padding:10px 12px; font-size:13px; color:var(--text2); text-align:center; }
+/* 门店类型多选下拉 */
+.multi-select { position:relative; display:inline-block; }
+.multi-select .ms-box { width:150px; padding:5px 8px; border:1px solid var(--border); border-radius:5px; font-size:13px; outline:none; box-sizing:border-box; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:6px; min-height:30px; }
+.multi-select .ms-box:focus { border-color:var(--primary); }
+.multi-select .ms-label { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); }
+.multi-select .ms-arrow { font-size:10px; color:var(--text2); flex-shrink:0; transition:transform 0.2s; }
+.multi-select.open .ms-arrow { transform:rotate(180deg); }
+.multi-select .ms-clear { color:var(--text2); cursor:pointer; font-size:12px; padding:0 2px; flex-shrink:0; }
+.multi-select .ms-clear:hover { color:var(--primary); }
+.multi-select .ms-dropdown { display:none; position:fixed; background:#fff; border:1px solid var(--border); border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,0.15); max-height:260px; overflow-y:auto; z-index:9999; min-width:150px; }
+.multi-select .ms-dropdown.open { display:block; }
+.ms-item { padding:7px 12px; font-size:13px; cursor:pointer; color:var(--text); display:flex; align-items:center; gap:8px; white-space:nowrap; }
+.ms-item:hover { background:var(--primary-light); }
+.ms-item input { margin:0; cursor:pointer; }
+.ms-item .ms-check { width:14px; height:14px; border:1px solid var(--border); border-radius:3px; display:inline-flex; align-items:center; justify-content:center; font-size:10px; color:#fff; flex-shrink:0; background:#fff; }
+.ms-item.checked .ms-check { background:var(--primary); border-color:var(--primary); }
+.ms-item .ms-check::after { content:''; width:6px; height:3px; border-left:2px solid #fff; border-bottom:2px solid #fff; transform:rotate(-45deg); margin-top:-2px; opacity:0; }
+.ms-item.checked .ms-check::after { opacity:1; }
+.ms-item.checked { background:var(--primary-light); color:var(--primary); }
+.ms-actions { padding:6px 8px; border-top:1px solid #f0f0f0; display:flex; justify-content:space-between; font-size:12px; }
+.ms-actions a { color:var(--primary); cursor:pointer; text-decoration:none; }
+.ms-actions a:hover { text-decoration:underline; }
 @media(max-width:900px) {
   .dashboard { grid-template-columns:1fr; padding:12px; }
   .summary-cards { grid-template-columns:repeat(2,1fr); }
@@ -120,9 +142,13 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
 <div class="filters">
   <div>
     <label>门店类型:</label>
-    <select id="storeCatFilter">
-      <option value="">全部</option>
-    </select>
+    <div class="multi-select" id="storeCatMulti">
+      <div class="ms-box" id="storeCatBox" tabindex="0">
+        <span class="ms-label" id="storeCatLabel">全部</span>
+        <span class="ms-arrow">&#9662;</span>
+      </div>
+      <div class="ms-dropdown" id="storeCatDropdown"></div>
+    </div>
   </div>
   <div>
     <label>人员类型:</label>
@@ -181,7 +207,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260910d"></script>
+<script src="data.js?v=20260910e"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -305,15 +331,31 @@ function ensureDateMeta(dd) {
   ROLE_CATEGORIES = dd.role_categories || [];
   STORE_NAMES = dd.store_names;
   // 记住当前所有筛选条件
-  var prevSc = document.getElementById('storeCatFilter').value;
+  var prevSc = storeCatSelected.slice();
   var prevSf = document.getElementById('staffCatFilter').value;
   var prevRole = document.getElementById('roleFilter').value;
   var prevBr = document.getElementById('branchFilter')._selectedVal || '';
   var prevStaff = document.getElementById('employeeSelect')._selectedVal || '';
   if (prevStaff && !EMPLOYEES[prevStaff]) prevStaff = '';
   rebuildFilters();
-  // 恢复门店类型
-  if (prevSc) document.getElementById('storeCatFilter').value = prevSc;
+  // 恢复门店类型（多选）
+  if (prevSc.length) {
+    storeCatSelected = prevSc;
+    var _lbl = document.getElementById('storeCatLabel');
+    if (_lbl) _lbl.textContent = storeCatLabel();
+    var _dd = document.getElementById('storeCatDropdown');
+    if (_dd) {
+      var _opts = getStoreTypeOptions();
+      var _html = '<div class="ms-actions"><a onclick="storeCatSelectAll()">全选</a><a onclick="storeCatClearAll()">清空</a></div>';
+      _opts.forEach(function(o) {
+        var _c = storeCatSelected.indexOf(o) >= 0 ? ' checked' : '';
+        _html += '<div class="ms-item' + _c + '" data-val="' + o + '"><span class="ms-check"></span>' + o + '</div>';
+      });
+      _dd.innerHTML = _html;
+    }
+  } else {
+    storeCatSelected = [];
+  }
   // 恢复人员类型
   if (prevSf) document.getElementById('staffCatFilter').value = prevSf;
   // 恢复客运专员
@@ -349,27 +391,39 @@ function matchStoreType(filterVal, empType) {
   return false;
 }
 
+// 多选门店类型：员工 filter_group 是否命中任一选中类型
+function matchStoreTypes(selectedArr, empType) {
+  if (!selectedArr || !selectedArr.length) return true;
+  return selectedArr.some(function(v) { return matchStoreType(v, empType); });
+}
+
+// 获取当前选中的门店类型数组
+function getSelectedStoreTypes() {
+  return (window.storeCatSelected || []).slice();
+}
+
 function rebuildFilters() {
-  var scSel = document.getElementById('storeCatFilter');
   var sfSel = document.getElementById('staffCatFilter');
   var roleSel = document.getElementById('roleFilter');
-  scSel.innerHTML = '<option value="">全部</option>';
   sfSel.innerHTML = '<option value="">全部</option>';
   roleSel.innerHTML = '<option value="">全部</option>';
   // 角色筛选器：全部 / 客运专员 / 非客运专员（固定三项，不从数据重复提取）
   roleSel.appendChild(new Option('客运专员', '客运专员'));
   roleSel.appendChild(new Option('非客运专员', '!客运专员'));
-  // 门店类型：使用规范选项（合并子类型），而非原始 store_categories
-  var scOpts = ['中心厅','直管店','合作店','商圈店','支局主厅'];
-  scOpts.forEach(function(s) {
-    // 只添加数据中实际存在的类型
-    if (STORE_CATEGORIES.indexOf(s) >= 0 ||
-        (s === '直管店' && STORE_CATEGORIES.indexOf('直管店（支局主厅）') >= 0) ||
-        (s === '合作店' && STORE_CATEGORIES.indexOf('合作店（支局主厅）') >= 0) ||
-        (s === '支局主厅' && (STORE_CATEGORIES.indexOf('直管店（支局主厅）') >= 0 || STORE_CATEGORIES.indexOf('合作店（支局主厅）') >= 0))) {
-      var o = document.createElement('option'); o.value=s; o.textContent=s; scSel.appendChild(o);
-    }
-  });
+  // 门店类型多选组件：重建选项并保留已选值
+  window._storeCatOptions = getStoreTypeOptions();
+  var dropdown = document.getElementById('storeCatDropdown');
+  if (dropdown) {
+    var opts = getStoreTypeOptions();
+    var html = '<div class="ms-actions"><a onclick="storeCatSelectAll()">全选</a><a onclick="storeCatClearAll()">清空</a></div>';
+    opts.forEach(function(o) {
+      var checked = storeCatSelected.indexOf(o) >= 0 ? ' checked' : '';
+      html += '<div class="ms-item' + checked + '" data-val="' + o + '"><span class="ms-check"></span>' + o + '</div>';
+    });
+    dropdown.innerHTML = html;
+    var lbl = document.getElementById('storeCatLabel');
+    if (lbl) lbl.textContent = storeCatLabel();
+  }
   STAFF_CATEGORIES.forEach(function(s) { var o = document.createElement('option'); o.value=s; o.textContent=s; sfSel.appendChild(o); });
   // 清空支局和人员输入框
   document.getElementById('branchFilter').value = '';
@@ -387,6 +441,92 @@ function rebuildFilters() {
 }
 
 // ====== 自定义可搜索下拉组件 ======
+// ====== 门店类型多选下拉组件 ======
+var storeCatSelected = [];  // 已选门店类型数组
+function getStoreCatOptions() { return window._storeCatOptions || []; }
+function storeCatLabel() {
+  if (!storeCatSelected.length) return '全部';
+  if (storeCatSelected.length >= getStoreTypeCount()) return '全部';
+  return storeCatSelected.join('+');
+}
+function getStoreTypeCount() { return getStoreTypeOptions().length; }
+function getStoreTypeOptions() {
+  var opts = [];
+  var scOpts = ['中心厅','直管店','合作店','商圈店','支局主厅'];
+  scOpts.forEach(function(s) {
+    if (STORE_CATEGORIES.indexOf(s) >= 0 ||
+        (s === '直管店' && STORE_CATEGORIES.indexOf('直管店（支局主厅）') >= 0) ||
+        (s === '合作店' && STORE_CATEGORIES.indexOf('合作店（支局主厅）') >= 0) ||
+        (s === '支局主厅' && (STORE_CATEGORIES.indexOf('直管店（支局主厅）') >= 0 || STORE_CATEGORIES.indexOf('合作店（支局主厅）') >= 0))) {
+      opts.push(s);
+    }
+  });
+  return opts;
+}
+function initStoreCatMulti() {
+  var box = document.getElementById('storeCatBox');
+  var dropdown = document.getElementById('storeCatDropdown');
+  var label = document.getElementById('storeCatLabel');
+  window._storeOptions = getStoreTypeOptions();
+
+  function render() {
+    var opts = getStoreTypeOptions();
+    var html = '<div class="ms-actions"><a onclick="storeCatSelectAll()">全选</a><a onclick="storeCatClearAll()">清空</a></div>';
+    opts.forEach(function(o) {
+      var checked = storeCatSelected.indexOf(o) >= 0 ? ' checked' : '';
+      html += '<div class="ms-item' + checked + '" data-val="' + o + '"><span class="ms-check"></span>' + o + '</div>';
+    });
+    dropdown.innerHTML = html;
+    label.textContent = storeCatLabel();
+  }
+
+  function position() {
+    var rect = box.getBoundingClientRect();
+    if (dropdown.parentElement !== document.body) document.body.appendChild(dropdown);
+    dropdown.style.left = rect.left + 'px';
+    dropdown.style.top = (rect.bottom + 2) + 'px';
+    dropdown.style.width = Math.max(rect.width, 160) + 'px';
+  }
+
+  box.addEventListener('click', function(e) {
+    if (e.target.classList.contains('ms-clear')) { storeCatClearAll(); return; }
+    e.stopPropagation();
+    dropdown.classList.toggle('open');
+    if (dropdown.classList.contains('open')) position();
+    render();
+  });
+
+  dropdown.addEventListener('click', function(e) {
+    var item = e.target.closest('.ms-item');
+    if (!item) return;
+    var val = item.getAttribute('data-val');
+    var idx = storeCatSelected.indexOf(val);
+    if (idx >= 0) storeCatSelected.splice(idx, 1);
+    else storeCatSelected.push(val);
+    render();
+    doQuery();
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!box.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.classList.remove('open');
+    }
+  });
+
+  render();
+}
+
+function storeCatSelectAll() {
+  storeCatSelected = getStoreTypeOptions().slice();
+  document.getElementById('storeCatLabel').textContent = storeCatLabel();
+  doQuery();
+}
+function storeCatClearAll() {
+  storeCatSelected = [];
+  document.getElementById('storeCatLabel').textContent = '全部';
+  doQuery();
+}
+
 function selectEmployee(staffNo) {
   var input = document.getElementById('employeeSelect');
   input._selectedVal = staffNo;
@@ -524,6 +664,7 @@ function computeRadarScores(emp, peerNos, skipAgg) {
 // 初始化
 initSearchSelect('branchFilter', 'branchDropdown', getBranchOptions);
 initSearchSelect('employeeSelect', 'empDropdown', getEmpOptions);
+initStoreCatMulti();
 
 function doQuery() {
   // 先根据日期范围切换数据
@@ -557,13 +698,31 @@ function doQuery() {
       }
     }
     // 如果选了特定日期，刷新筛选器（保留已选值）
-    var prevSc = document.getElementById('storeCatFilter').value;
+    var prevSc = storeCatSelected.slice();
     var prevSf = document.getElementById('staffCatFilter').value;
     var prevRole = document.getElementById('roleFilter').value;
     var prevBr = document.getElementById('branchFilter')._selectedVal || '';
     var prevEmp = document.getElementById('employeeSelect')._selectedVal || '';
     rebuildFilters();
-    if (prevSc) document.getElementById('storeCatFilter').value = prevSc;
+    // 恢复门店类型（多选）
+    if (prevSc.length) {
+      storeCatSelected = prevSc;
+      var _lbl = document.getElementById('storeCatLabel');
+      if (_lbl) _lbl.textContent = storeCatLabel();
+      var _dd = document.getElementById('storeCatDropdown');
+      if (_dd) {
+        var _opts = getStoreTypeOptions();
+        var _html = '<div class="ms-actions"><a onclick="storeCatSelectAll()">全选</a><a onclick="storeCatClearAll()">清空</a></div>';
+        _opts.forEach(function(o) {
+          var _c = storeCatSelected.indexOf(o) >= 0 ? ' checked' : '';
+          _html += '<div class="ms-item' + _c + '" data-val="' + o + '"><span class="ms-check"></span>' + o + '</div>';
+        });
+        _dd.innerHTML = _html;
+      }
+    } else {
+      storeCatSelected = [];
+    }
+    // 恢复人员类型
     if (prevSf) document.getElementById('staffCatFilter').value = prevSf;
     if (prevRole) document.getElementById('roleFilter').value = prevRole;
     // 恢复支局
@@ -604,16 +763,16 @@ function doQuery() {
 
 // 根据当前筛选条件，确定某员工的"同组人员"列表（用于动态排名）
 function getPeerStaffNos(emp) {
-  var scFilter = document.getElementById('storeCatFilter').value;
   var sfFilter = document.getElementById('staffCatFilter').value;
   var roleFilter = document.getElementById('roleFilter').value;
   var brFilter = document.getElementById('branchFilter')._selectedVal || '';
 
   var peers = Object.keys(EMPLOYEES);
 
-  // 门店类型：如果选了特定类型，同组就是该类型内（含子类型）；否则按员工自己的门店分类ym
-  if (scFilter) {
-    peers = peers.filter(function(k) { return matchStoreType(scFilter, EMPLOYEES[k].filter_group); });
+  // 门店类型（多选）：如果选中了特定类型，同组就是这些类型内（含子类型）；否则按员工自己的门店分类
+  var scTypes = getSelectedStoreTypes();
+  if (scTypes.length) {
+    peers = peers.filter(function(k) { return matchStoreTypes(scTypes, EMPLOYEES[k].filter_group); });
   } else {
     peers = peers.filter(function(k) { return EMPLOYEES[k].filter_group === emp.filter_group; });
   }
@@ -700,12 +859,12 @@ function computeDynamicRanks(emp, peerNos) {
 }
 
 function getFilteredStaffNos() {
-  var scFilter = document.getElementById('storeCatFilter').value;
   var sfFilter = document.getElementById('staffCatFilter').value;
   var roleFilter = document.getElementById('roleFilter').value;
   var brFilter = document.getElementById('branchFilter')._selectedVal || '';
   var staffNos = Object.keys(EMPLOYEES);
-  if (scFilter) staffNos = staffNos.filter(function(k) { return matchStoreType(scFilter, EMPLOYEES[k].filter_group); });
+  var scTypes = getSelectedStoreTypes();
+  if (scTypes.length) staffNos = staffNos.filter(function(k) { return matchStoreTypes(scTypes, EMPLOYEES[k].filter_group); });
   if (sfFilter) staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].staff_category === sfFilter; });
   if (roleFilter) {
     if (roleFilter.charAt(0) === '!') {
@@ -800,7 +959,8 @@ function renderGroupDashboard() {
   });
 
   // 标题
-  var scFilter = document.getElementById('storeCatFilter').value || '全部';
+  var scTypes = getSelectedStoreTypes();
+  var scFilter = scTypes.length ? scTypes.join('+') : '全部';
   var sfFilter = document.getElementById('staffCatFilter').value || '全部';
   var groupTitle = (scFilter !== '全部' ? scFilter : '') + (sfFilter !== '全部' ? sfFilter : '');
   if (!groupTitle) groupTitle = '全部人员';
@@ -1031,7 +1191,8 @@ function renderDashboard(emp, staffNo) {
   avgScore = RADAR_DIMS_LIST.length > 0 ? fmtNum(avgScore / RADAR_DIMS_LIST.length) : '0';
 
   // 生成排名范围描述
-  var scFilter = document.getElementById('storeCatFilter').value;
+  var scTypes = getSelectedStoreTypes();
+  var scFilter = scTypes.length ? scTypes.join('+') : '';
   var sfFilter = document.getElementById('staffCatFilter').value;
   var rankScopeDesc = [];
   if (scFilter) rankScopeDesc.push(scFilter);
