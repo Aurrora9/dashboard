@@ -181,7 +181,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260910b"></script>
+<script src="data.js?v=20260910c"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -356,6 +356,9 @@ function rebuildFilters() {
   scSel.innerHTML = '<option value="">全部</option>';
   sfSel.innerHTML = '<option value="">全部</option>';
   roleSel.innerHTML = '<option value="">全部</option>';
+  // 客运专员筛选器：全部 / 客运专员 / 非客运专员
+  roleSel.appendChild(new Option('客运专员', '客运专员'));
+  roleSel.appendChild(new Option('非客运专员', '!客运专员'));
   // 门店类型：使用规范选项（合并子类型），而非原始 store_categories
   var scOpts = ['中心厅','直管店','合作店','商圈店','支局主厅'];
   scOpts.forEach(function(s) {
@@ -625,7 +628,12 @@ function getPeerStaffNos(emp) {
 
   // 客运专员：如果选了特定角色，进一步缩小同组范围
   if (roleFilter) {
-    peers = peers.filter(function(k) { return EMPLOYEES[k].role === roleFilter; });
+    if (roleFilter.charAt(0) === '!') {
+      var excludeRole = roleFilter.substring(1);
+      peers = peers.filter(function(k) { return EMPLOYEES[k].role !== excludeRole; });
+    } else {
+      peers = peers.filter(function(k) { return EMPLOYEES[k].role === roleFilter; });
+    }
   }
 
   // 支局：如果选了特定支局，进一步缩小
@@ -700,7 +708,14 @@ function getFilteredStaffNos() {
   var staffNos = Object.keys(EMPLOYEES);
   if (scFilter) staffNos = staffNos.filter(function(k) { return matchStoreType(scFilter, EMPLOYEES[k].filter_group); });
   if (sfFilter) staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].staff_category === sfFilter; });
-  if (roleFilter) staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].role === roleFilter; });
+  if (roleFilter) {
+    if (roleFilter.charAt(0) === '!') {
+      var excludeRole = roleFilter.substring(1);
+      staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].role !== excludeRole; });
+    } else {
+      staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].role === roleFilter; });
+    }
+  }
   if (brFilter) staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].branch === brFilter; });
   return staffNos;
 }
