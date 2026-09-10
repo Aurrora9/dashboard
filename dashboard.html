@@ -131,6 +131,12 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     </select>
   </div>
   <div>
+    <label>客运专员:</label>
+    <select id="roleFilter">
+      <option value="">全部</option>
+    </select>
+  </div>
+  <div>
     <label>支局:</label>
     <div class="search-select" id="branchSelect">
       <input type="text" id="branchFilter" placeholder="全部" autocomplete="off">
@@ -175,7 +181,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260910a"></script>
+<script src="data.js?v=20260910b"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -184,6 +190,7 @@ let TRENDS = {};
 let BRANCHES = [];
 let STORE_CATEGORIES = [];
 let STAFF_CATEGORIES = [];
+let ROLE_CATEGORIES = [];
 let STORE_NAMES = [];
 let currentDate = Object.keys(ALL_DATE_DATA).sort().reverse()[0] || '20260731';
 
@@ -225,18 +232,20 @@ let charts = {};
 function ensureDateMeta(dd) {
     if (!dd || !dd.employees) return;
     if (!dd.branches || !dd.store_categories) {
-      var branches = {}, storeCats = {}, staffCats = {}, storeNames = {};
+      var branches = {}, storeCats = {}, staffCats = {}, storeNames = {}, roles = {};
       Object.keys(dd.employees).forEach(function(k) {
         var e = dd.employees[k];
         if (e.branch) branches[e.branch] = 1;
         if (e.store_type) storeCats[e.store_type] = 1;
         if (e.staff_category) staffCats[e.staff_category] = 1;
         if (e.store_name) storeNames[e.store_name] = 1;
+        if (e.role) roles[e.role] = 1;
       });
       dd.branches = dd.branches || Object.keys(branches).sort();
       dd.store_categories = dd.store_categories || Object.keys(storeCats).sort();
       dd.staff_categories = dd.staff_categories || Object.keys(staffCats).sort();
       dd.store_names = dd.store_names || Object.keys(storeNames).sort();
+      dd.role_categories = dd.role_categories || Object.keys(roles).sort();
       dd.trends = dd.trends || {};
     }
   }
@@ -293,10 +302,12 @@ function ensureDateMeta(dd) {
   BRANCHES = dd.branches;
   STORE_CATEGORIES = dd.store_categories;
   STAFF_CATEGORIES = dd.staff_categories;
+  ROLE_CATEGORIES = dd.role_categories || [];
   STORE_NAMES = dd.store_names;
   // 记住当前所有筛选条件
   var prevSc = document.getElementById('storeCatFilter').value;
   var prevSf = document.getElementById('staffCatFilter').value;
+  var prevRole = document.getElementById('roleFilter').value;
   var prevBr = document.getElementById('branchFilter')._selectedVal || '';
   var prevStaff = document.getElementById('employeeSelect')._selectedVal || '';
   if (prevStaff && !EMPLOYEES[prevStaff]) prevStaff = '';
@@ -305,6 +316,8 @@ function ensureDateMeta(dd) {
   if (prevSc) document.getElementById('storeCatFilter').value = prevSc;
   // 恢复人员类型
   if (prevSf) document.getElementById('staffCatFilter').value = prevSf;
+  // 恢复客运专员
+  if (prevRole) document.getElementById('roleFilter').value = prevRole;
   // 恢复支局
   if (prevBr) {
     document.getElementById('branchFilter')._selectedVal = prevBr;
@@ -339,8 +352,10 @@ function matchStoreType(filterVal, empType) {
 function rebuildFilters() {
   var scSel = document.getElementById('storeCatFilter');
   var sfSel = document.getElementById('staffCatFilter');
+  var roleSel = document.getElementById('roleFilter');
   scSel.innerHTML = '<option value="">全部</option>';
   sfSel.innerHTML = '<option value="">全部</option>';
+  roleSel.innerHTML = '<option value="">全部</option>';
   // 门店类型：使用规范选项（合并子类型），而非原始 store_categories
   var scOpts = ['中心厅','直管店','合作店','商圈店','支局主厅'];
   scOpts.forEach(function(s) {
@@ -353,6 +368,7 @@ function rebuildFilters() {
     }
   });
   STAFF_CATEGORIES.forEach(function(s) { var o = document.createElement('option'); o.value=s; o.textContent=s; sfSel.appendChild(o); });
+  ROLE_CATEGORIES.forEach(function(s) { var o = document.createElement('option'); o.value=s; o.textContent=s; roleSel.appendChild(o); });
   // 清空支局和人员输入框
   document.getElementById('branchFilter').value = '';
   document.getElementById('branchFilter')._selectedVal = '';
@@ -527,6 +543,7 @@ function doQuery() {
       BRANCHES = dd.branches;
       STORE_CATEGORIES = dd.store_categories;
       STAFF_CATEGORIES = dd.staff_categories;
+      ROLE_CATEGORIES = dd.role_categories || [];
       STORE_NAMES = dd.store_names;
     }
     // 多日期时：用聚合数据替换EMPLOYEES，使所有下游函数自动使用聚合数据
@@ -540,11 +557,13 @@ function doQuery() {
     // 如果选了特定日期，刷新筛选器（保留已选值）
     var prevSc = document.getElementById('storeCatFilter').value;
     var prevSf = document.getElementById('staffCatFilter').value;
+    var prevRole = document.getElementById('roleFilter').value;
     var prevBr = document.getElementById('branchFilter')._selectedVal || '';
     var prevEmp = document.getElementById('employeeSelect')._selectedVal || '';
     rebuildFilters();
     if (prevSc) document.getElementById('storeCatFilter').value = prevSc;
     if (prevSf) document.getElementById('staffCatFilter').value = prevSf;
+    if (prevRole) document.getElementById('roleFilter').value = prevRole;
     // 恢复支局
     if (prevBr) {
       document.getElementById('branchFilter')._selectedVal = prevBr;
@@ -585,6 +604,7 @@ function doQuery() {
 function getPeerStaffNos(emp) {
   var scFilter = document.getElementById('storeCatFilter').value;
   var sfFilter = document.getElementById('staffCatFilter').value;
+  var roleFilter = document.getElementById('roleFilter').value;
   var brFilter = document.getElementById('branchFilter')._selectedVal || '';
 
   var peers = Object.keys(EMPLOYEES);
@@ -601,7 +621,11 @@ function getPeerStaffNos(emp) {
     peers = peers.filter(function(k) { return EMPLOYEES[k].staff_category === sfFilter; });
   } else if (emp.staff_category) {
     // 未选人员类型时，默认按员工自己的人员类型分组（更公平）
-    // 不强制筛选，但注释：如果想默认按门店分类ym分组不区分人员类型，去掉这个else
+  }
+
+  // 客运专员：如果选了特定角色，进一步缩小同组范围
+  if (roleFilter) {
+    peers = peers.filter(function(k) { return EMPLOYEES[k].role === roleFilter; });
   }
 
   // 支局：如果选了特定支局，进一步缩小
@@ -671,10 +695,12 @@ function computeDynamicRanks(emp, peerNos) {
 function getFilteredStaffNos() {
   var scFilter = document.getElementById('storeCatFilter').value;
   var sfFilter = document.getElementById('staffCatFilter').value;
+  var roleFilter = document.getElementById('roleFilter').value;
   var brFilter = document.getElementById('branchFilter')._selectedVal || '';
   var staffNos = Object.keys(EMPLOYEES);
   if (scFilter) staffNos = staffNos.filter(function(k) { return matchStoreType(scFilter, EMPLOYEES[k].filter_group); });
   if (sfFilter) staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].staff_category === sfFilter; });
+  if (roleFilter) staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].role === roleFilter; });
   if (brFilter) staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].branch === brFilter; });
   return staffNos;
 }
