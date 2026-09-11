@@ -207,7 +207,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260911b"></script>
+<script src="data.js?v=20260911c"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -1599,26 +1599,56 @@ function drawTrend() {
     }
   }
   var seriesData = allMonths.map(function(lbl) { return monthData[lbl]; });
-  chart.setOption({
+  // 当月（最后一个月份）可能是不完全月数据
+  var lastMonthIdx = allMonths.length - 1;
+  var isCurrentMonthPartial = false;
+  if (dateYear === realYear) {
+    var today = new Date();
+    var todayDate = today.getDate();
+    var currentMonth = parseInt(currentDate.substring(4, 6));
+    var lastDayOfMonth = new Date(realYear, currentMonth, 0).getDate();
+    if (todayDate < lastDayOfMonth) {
+      isCurrentMonthPartial = true;
+    }
+  }
+  var markPoint = isCurrentMonthPartial ? {
+    symbol: 'pin', symbolSize: 50, data: [{
+      name: '不完全月', value: '不完全月',
+      xAxis: lastMonthIdx, yAxis: seriesData[lastMonthIdx],
+      itemStyle: { color: '#fbbc04' },
+      label: { fontSize: 10, color: '#5f6368' }
+    }]
+  } : undefined;
+  var _seriesData = seriesData.map(function(v, i) {
+    if (i === lastMonthIdx && isCurrentMonthPartial) return { value: v, itemStyle: { color: '#fbbc04', borderColor: '#fbbc04' } };
+    return v;
+  });
+  var option = {
     tooltip: {
       trigger: 'axis',
       formatter: function(params) {
         var p = params[0];
-        return p.name + '<br/>' + p.marker + ' ' + p.seriesName + ': ' + fmtNum(p.value);
+        var tip = p.name + '<br/>' + p.marker + ' ' + p.seriesName + ': ' + fmtNum(p.value);
+        if (p.dataIndex === lastMonthIdx && isCurrentMonthPartial) {
+          tip += ' (不完全月)';
+        }
+        return tip;
       }
     },
     grid: { left: 60, right: 30, top: 40, bottom: 30 },
     xAxis: { type: 'category', data: allMonths, axisLabel: { fontSize: 12 } },
     yAxis: { type: 'value', axisLabel: { fontSize: 12, formatter: function(v) { return fmtNum(v); } } },
     series: [{
-      name: cfg.label, type: 'line', data: seriesData, smooth: true,
+      name: cfg.label, type: 'line', data: _seriesData, smooth: true,
       connectNulls: false,
       lineStyle: { color: cfg.color, width: 2 },
       itemStyle: { color: cfg.color },
       areaStyle: { color: cfg.color, opacity: 0.1 },
-      symbol: 'circle', symbolSize: 6
+      symbol: 'circle', symbolSize: 6,
+      markPoint: markPoint
     }]
-  });
+  };
+  chart.setOption(option, true);
 }
 
 function renderTrend(emp, staffNo) {
