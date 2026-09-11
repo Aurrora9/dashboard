@@ -207,7 +207,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260911d"></script>
+<script src="data.js?v=20260911e"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -1618,28 +1618,35 @@ function drawTrend() {
   var lastCoordVal = (seriesData[lastMonthIdx] === null || seriesData[lastMonthIdx] === undefined) ? 0 : seriesData[lastMonthIdx];
   var markPoint = undefined;
   var markLine = undefined;
-  if (isCurrentMonthPartial) {
+  if (isCurrentMonthPartial && forecastVal !== null && forecastVal > 0) {
+    // 预估点：空心圆 + 左侧深色文字标签
     markPoint = {
-      symbol: 'pin', symbolSize: 56, data: [{
-        name: '不完全月',
-        value: (forecastVal !== null && forecastVal > 0) ? '预估\n~' + fmtNum(forecastVal) : '不完全月',
-        coord: [lastMonthIdx, lastCoordVal],
-        itemStyle: { color: '#fbbc04' },
-        label: { fontSize: 10, color: '#fff', lineHeight: 12 }
+      symbol: 'circle', symbolSize: 10,
+      itemStyle: { color: '#ffffff', borderColor: '#fbbc04', borderWidth: 2 },
+      data: [{
+        coord: [lastMonthIdx, forecastVal],
+        label: {
+          show: true,
+          formatter: '预估 ~' + fmtNum(forecastVal),
+          position: 'left',
+          distance: 10,
+          color: '#b45309',
+          fontSize: 11,
+          fontWeight: 600
+        }
       }]
     };
-    if (forecastVal !== null && forecastVal > 0) {
-      markLine = {
-        symbol: ['none', 'arrow'], symbolSize: 8,
-        silent: true,
-        lineStyle: { type: 'dashed', color: '#fbbc04', width: 2 },
-        label: { show: false },
-        data: [[
-          { coord: [lastMonthIdx, lastCoordVal] },
-          { coord: [lastMonthIdx, forecastVal] }
-        ]]
-      };
-    }
+    // 实际值→预估值：细虚线连接
+    markLine = {
+      symbol: 'none',
+      silent: true,
+      lineStyle: { type: 'dashed', color: '#fbbc04', width: 1.5, opacity: 0.9 },
+      label: { show: false },
+      data: [[
+        { coord: [lastMonthIdx, lastCoordVal] },
+        { coord: [lastMonthIdx, forecastVal] }
+      ]]
+    };
   }
   var _seriesData = seriesData.map(function(v, i) {
     if (i === lastMonthIdx && isCurrentMonthPartial) return { value: v, itemStyle: { color: '#fbbc04', borderColor: '#fbbc04' } };
