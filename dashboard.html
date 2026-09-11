@@ -1614,7 +1614,7 @@ function drawTrend() {
   var markPoint = isCurrentMonthPartial ? {
     symbol: 'pin', symbolSize: 50, data: [{
       name: '不完全月', value: '不完全月',
-      xAxis: lastMonthIdx, yAxis: seriesData[lastMonthIdx],
+      coord: [lastMonthIdx, seriesData[lastMonthIdx]],
       itemStyle: { color: '#fbbc04' },
       label: { fontSize: 10, color: '#5f6368' }
     }]
