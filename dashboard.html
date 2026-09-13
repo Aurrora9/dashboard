@@ -205,7 +205,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260911f"></script>
+<script src="data.js?v=20260913a"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -417,6 +417,11 @@ function matchStoreTypes(selectedArr, empType) {
 // 获取当前选中的门店类型数组
 function getSelectedStoreTypes() {
   return (window.storeCatSelected || []).slice();
+}
+// 门店类型是否视为"全部"：未选（空）或全选时都算全部
+function isAllStoreTypes() {
+  var sc = getSelectedStoreTypes();
+  return !sc.length || sc.length >= getStoreTypeCount();
 }
 
 function rebuildFilters() {
@@ -973,12 +978,10 @@ function getPeerStaffNos(emp) {
 
   var peers = Object.keys(EMPLOYEES);
 
-  // 门店类型（多选）：如果选中了特定类型，同组就是这些类型内（含子类型）；否则按员工自己的门店分类
+  // 门店类型（多选）：只有选了特定类型（非全选）时，同组才按这些类型收窄；未选/全选=全部
   var scTypes = getSelectedStoreTypes();
-  if (scTypes.length) {
+  if (scTypes.length && !isAllStoreTypes()) {
     peers = peers.filter(function(k) { return matchStoreTypes(scTypes, EMPLOYEES[k].filter_group); });
-  } else {
-    peers = peers.filter(function(k) { return EMPLOYEES[k].filter_group === emp.filter_group; });
   }
 
   // 人员类型/角色（多选）：如果选中了特定项，进一步缩小同组范围
@@ -1055,7 +1058,7 @@ function getFilteredStaffNos() {
   var brFilter = document.getElementById('branchFilter')._selectedVal || '';
   var staffNos = Object.keys(EMPLOYEES);
   var scTypes = getSelectedStoreTypes();
-  if (scTypes.length) staffNos = staffNos.filter(function(k) { return matchStoreTypes(scTypes, EMPLOYEES[k].filter_group); });
+  if (scTypes.length && !isAllStoreTypes()) staffNos = staffNos.filter(function(k) { return matchStoreTypes(scTypes, EMPLOYEES[k].filter_group); });
   var srSelected = staffRoleSelected.slice();
   if (srSelected.length) staffNos = staffNos.filter(function(k) { return matchStaffRole(srSelected, EMPLOYEES[k]); });
   if (brFilter) staffNos = staffNos.filter(function(k) { return EMPLOYEES[k].branch === brFilter; });
@@ -1144,9 +1147,9 @@ function renderGroupDashboard() {
 
   // 标题
   var scTypes = getSelectedStoreTypes();
-  var scFilter = scTypes.length ? scTypes.join('+') : '全部';
+  var scFilter = (scTypes.length && !isAllStoreTypes()) ? scTypes.join('+') : '';
   var sfFilter = staffRoleLabel();
-  var groupTitle = (scFilter !== '全部' ? scFilter : '') + (sfFilter !== '全部' ? sfFilter : '');
+  var groupTitle = (scFilter || '') + (sfFilter !== '全部' ? sfFilter : '');
   if (!groupTitle) groupTitle = '全部人员';
 
   dash.innerHTML =
@@ -1376,13 +1379,18 @@ function renderDashboard(emp, staffNo) {
 
   // 生成排名范围描述
   var scTypes = getSelectedStoreTypes();
-  var scFilter = scTypes.length ? scTypes.join('+') : '';
+  var scFilter = (!scTypes.length || isAllStoreTypes()) ? '' : scTypes.join('+');
   var sfFilter = staffRoleLabel();
   var rankScopeDesc = [];
   if (scFilter) rankScopeDesc.push(scFilter);
-  else if (emp.filter_group) rankScopeDesc.push(emp.filter_group);
   if (sfFilter !== '全部') rankScopeDesc.push(sfFilter);
-  if (!rankScopeDesc.length) rankScopeDesc.push(emp.store_type || emp.filter_group || '全部');
+  // 没有任何显式筛选时，回退展示员工自身属性（门店类型 + 人员类型）
+  if (!rankScopeDesc.length) {
+    var empStore = emp.filter_group || emp.store_type || '';
+    var empRole = matchStaffRole(staffRoleSelected, emp) ? staffRoleLabel() : '';
+    rankScopeDesc.push(empStore || empRole || '全部');
+    if (empStore && empRole && empRole !== '全部') rankScopeDesc.push(empRole);
+  }
   var rankLabel = rankScopeDesc.join(' ');
 
   // 存储动态雷达得分供子组件使用
