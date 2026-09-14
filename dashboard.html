@@ -216,7 +216,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260914g"></script>
+<script src="data.js?v=20260914h"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -257,6 +257,73 @@ function getDimGroupAvg(dim, peerNos) {
     var e = EMPLOYEES[k]; if (!e) return;
     var v = 0;
     if (dwmKey && e.dwm && e.dwm[dwmKey]) v = e.dwm[dwmKey].month || 0;
+
+// 计算同时间节点环比/同比：本月截至X日 vs 上月同日 / 去年同月同日
+// 返回 { momPct, momPrev, hasMom, yoyPct, yoyPrev, hasYoy }
+function calcPeriodCompare(staffNo, bizKey, curDateStr) {
+  var DWM_KEYS = {'有效积分':'有效积分','天翼':'天翼','宽带':'宽带','融合套餐':'融合套餐','终端合约':'终端合约','新增高套':'新增高套','存量套改':'存量套改'};
+  var dwmKey = DWM_KEYS[bizKey];
+  if (!dwmKey) return null;
+
+  // 解析当前日期
+  var curY = parseInt(curDateStr.substring(0,4));
+  var curM = parseInt(curDateStr.substring(4,6));
+  var curD = parseInt(curDateStr.substring(6,8));
+
+  // 当前值：本月截至当日的月累计
+  var curEmp = ALL_DATE_DATA[curDateStr] && ALL_DATE_DATA[curDateStr].employees && ALL_DATE_DATA[curDateStr].employees[staffNo];
+  var curVal = (curEmp && curEmp.dwm && curEmp.dwm[dwmKey]) ? curEmp.dwm[dwmKey].month || 0 : 0;
+
+  // 上月同日：查找上月同一天的日期数据
+  var prevY = curM === 1 ? curY - 1 : curY;
+  var prevM = curM === 1 ? 12 : curM - 1;
+  var prevDateStr = '' + prevY + (prevM < 10 ? '0' + prevM : prevM) + (curD < 10 ? '0' + curD : curD);
+  var prevEmp = ALL_DATE_DATA[prevDateStr] && ALL_DATE_DATA[prevDateStr].employees && ALL_DATE_DATA[prevDateStr].employees[staffNo];
+  var prevVal = (prevEmp && prevEmp.dwm && prevEmp.dwm[dwmKey]) ? prevEmp.dwm[dwmKey].month || 0 : 0;
+  var hasMom = !!prevEmp;
+  // 如果上月该日没有数据，找上月最后一天
+  if (!hasMom) {
+    var lastDayPrev = new Date(prevY, prevM, 0).getDate();
+    for (var dd = lastDayPrev; dd >= 1; dd--) {
+      var tryDate = '' + prevY + (prevM < 10 ? '0' + prevM : prevM) + (dd < 10 ? '0' + dd : dd);
+      var tryEmp = ALL_DATE_DATA[tryDate] && ALL_DATE_DATA[tryDate].employees && ALL_DATE_DATA[tryDate].employees[staffNo];
+      if (tryEmp && tryEmp.dwm && tryEmp.dwm[dwmKey] && dd <= curD) {
+        prevVal = tryEmp.dwm[dwmKey].month || 0;
+        hasMom = true;
+        prevDateStr = tryDate;
+        break;
+      }
+    }
+  }
+  var momPct = (hasMom && prevVal > 0) ? ((curVal - prevVal) / prevVal * 100) : 0;
+
+  // 去年同月同日
+  var yoyY = curY - 1;
+  var yoyDateStr = '' + yoyY + (curM < 10 ? '0' + curM : curM) + (curD < 10 ? '0' + curD : curD);
+  var yoyEmp = ALL_DATE_DATA[yoyDateStr] && ALL_DATE_DATA[yoyDateStr].employees && ALL_DATE_DATA[yoyDateStr].employees[staffNo];
+  var yoyVal = (yoyEmp && yoyEmp.dwm && yoyEmp.dwm[dwmKey]) ? yoyEmp.dwm[dwmKey].month || 0 : 0;
+  var hasYoy = !!yoyEmp;
+  // 如果去年同日没有，找最近的同月更早日期
+  if (!hasYoy) {
+    for (var dd2 = curD - 1; dd2 >= 1; dd2--) {
+      var tryDate2 = '' + yoyY + (curM < 10 ? '0' + curM : curM) + (dd2 < 10 ? '0' + dd2 : dd2);
+      var tryEmp2 = ALL_DATE_DATA[tryDate2] && ALL_DATE_DATA[tryDate2].employees && ALL_DATE_DATA[tryDate2].employees[staffNo];
+      if (tryEmp2 && tryEmp2.dwm && tryEmp2.dwm[dwmKey]) {
+        yoyVal = tryEmp2.dwm[dwmKey].month || 0;
+        hasYoy = true;
+        yoyDateStr = tryDate2;
+        break;
+      }
+    }
+  }
+  var yoyPct = (hasYoy && yoyVal > 0) ? ((curVal - yoyVal) / yoyVal * 100) : 0;
+
+  return {
+    curVal: curVal,
+    momPct: momPct, momPrev: prevVal, hasMom: hasMom, momDate: prevDateStr,
+    yoyPct: yoyPct, yoyPrev: yoyVal, hasYoy: hasYoy, yoyDate: yoyDateStr
+  };
+}
     sum += v; cnt++;
   });
   return cnt > 0 ? sum / cnt : 0;
@@ -1603,14 +1670,14 @@ function drawBizDetail() {
   var rankInfo = dynRank ? dynRank.ranks[key] : null;
   var vsAvg = groupAvg > 0 ? ((m - groupAvg) / groupAvg * 100) : 0;
 
-  // 同比环比
-  var my = emp.mom_yoy ? emp.mom_yoy[key] : null;
-  var momVal = my ? my[0] : 0;
-  var yoyVal = my ? my[3] : 0;
-  var momPrev = my ? my[1] : 0;
-  var yoyPrev = my ? my[4] : 0;
-  var hasMom = my ? !!my[2] : false;
-  var hasYoy = my ? !!my[5] : false;
+  // 同时间节点环比/同比（本月截至当日 vs 上月同日 / 去年同月同日）
+  var pc = calcPeriodCompare(staffNo, key, currentDate);
+  var momPct = pc ? pc.momPct : 0;
+  var momPrev = pc ? pc.momPrev : 0;
+  var hasMom = pc ? pc.hasMom : false;
+  var yoyPct = pc ? pc.yoyPct : 0;
+  var yoyPrev = pc ? pc.yoyPrev : 0;
+  var hasYoy = pc ? pc.hasYoy : false;
 
   function fmtPct(v) {
     if (v > 0) return '<span style="color:#34a853;font-weight:600;">+' + v.toFixed(1) + '%</span>';
@@ -1644,9 +1711,9 @@ function drawBizDetail() {
   html += '<div style="font-size:11px;color:var(--text2);margin-bottom:4px;">环比（较上月）</div>';
   if (hasMom) {
     html += '<div style="display:flex;align-items:baseline;gap:8px;">';
-    html += '<span style="font-size:24px;font-weight:700;">' + fmtPct(momVal) + '</span>';
+    html += '<span style="font-size:24px;font-weight:700;">' + fmtPct(momPct) + '</span>';
     html += '</div>';
-    html += '<div style="font-size:11px;color:var(--text2);margin-top:4px;">上月 ' + fmtNum(momPrev) + ' → 本月 ' + fmtNum(m) + '</div>';
+    html += '<div style="font-size:11px;color:var(--text2);margin-top:4px;">上月同期(' + (pc ? pc.momDate.substring(4,6)+'月'+pc.momDate.substring(6,8)+'日' : '') + ') ' + fmtNum(momPrev) + ' → 本月 ' + fmtNum(m) + '</div>';
   } else {
     html += '<div style="font-size:16px;color:var(--text2);margin-top:4px;">暂无数据</div>';
   }
@@ -1656,9 +1723,9 @@ function drawBizDetail() {
   html += '<div style="font-size:11px;color:var(--text2);margin-bottom:4px;">同比（较去年同期）</div>';
   if (hasYoy) {
     html += '<div style="display:flex;align-items:baseline;gap:8px;">';
-    html += '<span style="font-size:24px;font-weight:700;">' + fmtPct(yoyVal) + '</span>';
+    html += '<span style="font-size:24px;font-weight:700;">' + fmtPct(yoyPct) + '</span>';
     html += '</div>';
-    html += '<div style="font-size:11px;color:var(--text2);margin-top:4px;">同期 ' + fmtNum(yoyPrev) + ' → 本月 ' + fmtNum(m) + '</div>';
+    html += '<div style="font-size:11px;color:var(--text2);margin-top:4px;">去年同期(' + (pc ? pc.yoyDate.substring(0,4)+'年'+pc.yoyDate.substring(4,6)+'月'+pc.yoyDate.substring(6,8)+'日' : '') + ') ' + fmtNum(yoyPrev) + ' → 本月 ' + fmtNum(m) + '</div>';
   } else {
     html += '<div style="font-size:16px;color:var(--text2);margin-top:4px;">暂无数据</div>';
   }
