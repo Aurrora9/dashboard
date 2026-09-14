@@ -216,8 +216,85 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260914i"></script>
+<script src="data.js?v=20260914j"></script>
 <script>
+// === 紧凑数据展开器 ===
+// 紧凑格式: ALL_DATE_DATA = { _emp: {...}, _dates: { date: { e: {...}, br, sc2, ... } } }
+// 展开后: ALL_DATE_DATA = { date: { employees: {...}, branches, ... } } (原格式)
+(function() {
+  var raw = ALL_DATE_DATA;
+  if (!raw || !raw._emp || !raw._dates) return; // 已是旧格式则跳过
+
+  var EMP_META = raw._emp;
+  var DATES = raw._dates;
+  var BIZ_RMAP = {'T':'天翼','B':'宽带','F':'融合套餐','Z':'终端合约','J':'有效积分','G':'新增高套','C':'存量套改','R':'FTTR'};
+  var expanded = {};
+
+  var allDateKeys = Object.keys(DATES);
+  var lastDate = allDateKeys[allDateKeys.length - 1];
+
+  // 缓存上一次的 meta（从最后日期取，如果没有则从其他日期取）
+  var cachedMeta = null;
+
+  allDateKeys.forEach(function(d) {
+    var dd = DATES[d];
+    var emps = dd.e || {};
+    var expandedEmps = {};
+
+    Object.keys(emps).forEach(function(empNo) {
+      var ce = emps[empNo];
+      var meta = EMP_META[empNo] || {};
+      var emp = {
+        staff_nm: meta.n || '',
+        store_type: meta.st || '',
+        filter_group: meta.fg || '',
+        rank_group: meta.rg || '',
+        branch: meta.b || '',
+        store_name: meta.sn || '',
+        staff_category: meta.sc || '',
+        role: meta.r || '',
+        dwm: {},
+        training: ce._tr || '',
+        suspected_frozen: ce._sf || false
+      };
+      if (ce._my) emp.mom_yoy = ce._my;
+
+      Object.keys(ce).forEach(function(k) {
+        if (k === '_tr' || k === '_sf' || k === '_my') return;
+        var bizName = BIZ_RMAP[k] || k;
+        var cv = ce[k];
+        emp.dwm[bizName] = {
+          day: cv.d !== undefined ? cv.d : 0,
+          week: cv.w !== undefined ? cv.w : 0,
+          month: cv.m !== undefined ? cv.m : 0
+        };
+      });
+
+      expandedEmps[empNo] = emp;
+    });
+
+    var out = { employees: expandedEmps };
+
+    // meta 数据：当前日期有就用，否则用缓存
+    if (dd.br) {
+      cachedMeta = { branches: dd.br, store_categories: dd.sc2, staff_categories: dd.stc, store_names: dd.sn2, role_categories: dd.rc, trends: dd.tr };
+    }
+    if (cachedMeta) {
+      if (cachedMeta.branches) out.branches = cachedMeta.branches;
+      if (cachedMeta.store_categories) out.store_categories = cachedMeta.store_categories;
+      if (cachedMeta.staff_categories) out.staff_categories = cachedMeta.staff_categories;
+      if (cachedMeta.store_names) out.store_names = cachedMeta.store_names;
+      if (cachedMeta.role_categories) out.role_categories = cachedMeta.role_categories;
+      if (cachedMeta.trends) out.trends = cachedMeta.trends;
+    }
+
+    expanded[d] = out;
+  });
+
+  // 替换全局变量
+  ALL_DATE_DATA = expanded;
+})();
+
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
 let EMPLOYEES = {};
