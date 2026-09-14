@@ -216,7 +216,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260914d"></script>
+<script src="data.js?v=20260914e"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -999,6 +999,13 @@ function getPeerStaffNos(emp) {
   var srSelected = staffRoleSelected.slice();
   if (srSelected.length) {
     peers = peers.filter(function(k) { return matchStaffRole(srSelected, EMPLOYEES[k]); });
+  } else if (emp) {
+    // 未显式选择人员类型时，自动按该员工的角色/人员类型收窄同组
+    if (emp.role === '客运专员') {
+      peers = peers.filter(function(k) { return EMPLOYEES[k].role === '客运专员'; });
+    } else if (emp.staff_category) {
+      peers = peers.filter(function(k) { return EMPLOYEES[k].staff_category === emp.staff_category; });
+    }
   }
 
   // 支局：如果选了特定支局，进一步缩小
@@ -1398,9 +1405,10 @@ function renderDashboard(emp, staffNo) {
   // 没有任何显式筛选时，回退展示员工自身属性（门店类型 + 人员类型）
   if (!rankScopeDesc.length) {
     var empStore = emp.filter_group || emp.store_type || '';
-    var empRole = matchStaffRole(staffRoleSelected, emp) ? staffRoleLabel() : '';
-    rankScopeDesc.push(empStore || empRole || '全部');
-    if (empStore && empRole && empRole !== '全部') rankScopeDesc.push(empRole);
+    var empRole = emp.role === '客运专员' ? '客运专员' : (emp.staff_category || '');
+    if (empStore) rankScopeDesc.push(empStore);
+    if (empRole) rankScopeDesc.push(empRole);
+    if (!rankScopeDesc.length) rankScopeDesc.push('全部');
   }
   var rankLabel = rankScopeDesc.join(' ');
 
@@ -1429,13 +1437,17 @@ function renderDashboard(emp, staffNo) {
       '<div style="font-size:13px;color:#856404;margin-top:2px;">该人员当月所有业务数据均为0，可能已冻结、离职或门店已闭店/改名，数据仅供参考。</div></div></div>';
   }
 
+  // 人员类型标签
+  var empRoleLabel = emp.role === '客运专员' ? '客运专员' : (emp.staff_category || '未分类');
+  var empStoreType = emp.filter_group || emp.store_type || '';
+
   dash.innerHTML =
     frozenBanner +
     '<div class="summary-cards">' +
-      '<div class="summary-item"><div class="val">' + emp.staff_nm + '</div><div class="lbl">' + emp.store_name + (emp.staff_category ? ' | ' + emp.staff_category : '') + '</div></div>' +
+      '<div class="summary-item"><div class="val">' + emp.staff_nm + '</div><div class="lbl">' + emp.store_name + '</div></div>' +
+      '<div class="summary-item"><div class="val">' + empRoleLabel + '</div><div class="lbl">门店类型: ' + empStoreType + '</div></div>' +
       '<div class="summary-item"><div class="val">' + rankLabel + '</div><div class="lbl">排名范围 | 同组' + sameType + '人</div></div>' +
-      '<div class="summary-item"><div class="val">' + fmtNum(avgScore) + '</div><div class="lbl">综合得分</div></div>' +
-      '<div class="summary-item"><div class="val">' + strongCount + '强 / ' + weakCount + '弱</div><div class="lbl">强弱点维度数</div></div>' +
+      '<div class="summary-item"><div class="val">' + fmtNum(avgScore) + '</div><div class="lbl">综合得分 | ' + strongCount + '强/' + weakCount + '弱</div></div>' +
     '</div>' +
     '<div class="card"><h3>业务能力雷达图</h3><div id="radarChart" style="height:360px;"></div></div>' +
     '<div class="card"><h3>同组排名对比</h3><div id="rankChart" style="height:360px;"></div></div>' +
