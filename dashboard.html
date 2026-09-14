@@ -216,7 +216,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260914h"></script>
+<script src="data.js?v=20260914i"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -249,17 +249,8 @@ function computeRadarAvg(emp) {
   return rKeys.length ? sum / rKeys.length : 0;
 }
 
-function getDimGroupAvg(dim, peerNos) {
-  var DIM_TO_DWM = {'天翼发展':'天翼','宽带发展':'宽带','FTTR发展':'FTTR','融合套餐':'融合套餐','终端合约':'终端合约','积分产出':'有效积分','高套发展':'新增高套','存量套改':'存量套改'};
-  var dwmKey = DIM_TO_DWM[dim];
-  var sum = 0, cnt = 0;
-  peerNos.forEach(function(k) {
-    var e = EMPLOYEES[k]; if (!e) return;
-    var v = 0;
-    if (dwmKey && e.dwm && e.dwm[dwmKey]) v = e.dwm[dwmKey].month || 0;
-
 // 计算同时间节点环比/同比：本月截至X日 vs 上月同日 / 去年同月同日
-// 返回 { momPct, momPrev, hasMom, yoyPct, yoyPrev, hasYoy }
+// 返回 { curVal, momPct, momPrev, hasMom, momDate, yoyPct, yoyPrev, hasYoy, yoyDate }
 function calcPeriodCompare(staffNo, bizKey, curDateStr) {
   var DWM_KEYS = {'有效积分':'有效积分','天翼':'天翼','宽带':'宽带','融合套餐':'融合套餐','终端合约':'终端合约','新增高套':'新增高套','存量套改':'存量套改'};
   var dwmKey = DWM_KEYS[bizKey];
@@ -324,6 +315,15 @@ function calcPeriodCompare(staffNo, bizKey, curDateStr) {
     yoyPct: yoyPct, yoyPrev: yoyVal, hasYoy: hasYoy, yoyDate: yoyDateStr
   };
 }
+
+function getDimGroupAvg(dim, peerNos) {
+  var DIM_TO_DWM = {'天翼发展':'天翼','宽带发展':'宽带','FTTR发展':'FTTR','融合套餐':'融合套餐','终端合约':'终端合约','积分产出':'有效积分','高套发展':'新增高套','存量套改':'存量套改'};
+  var dwmKey = DIM_TO_DWM[dim];
+  var sum = 0, cnt = 0;
+  peerNos.forEach(function(k) {
+    var e = EMPLOYEES[k]; if (!e) return;
+    var v = 0;
+    if (dwmKey && e.dwm && e.dwm[dwmKey]) v = e.dwm[dwmKey].month || 0;
     sum += v; cnt++;
   });
   return cnt > 0 ? sum / cnt : 0;
