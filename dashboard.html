@@ -216,7 +216,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260914f"></script>
+<script src="data.js?v=20260914g"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -1005,6 +1005,10 @@ function getPeerStaffNos(emp) {
       peers = peers.filter(function(k) { return EMPLOYEES[k].role === '客运专员'; });
     } else if (emp.staff_category) {
       peers = peers.filter(function(k) { return EMPLOYEES[k].staff_category === emp.staff_category; });
+      // 营业员进一步按门店类型收窄（中心厅营业员只跟中心厅营业员比）
+      if (emp.filter_group) {
+        peers = peers.filter(function(k) { return EMPLOYEES[k].filter_group === emp.filter_group; });
+      }
     }
   }
 
@@ -1406,9 +1410,16 @@ function renderDashboard(emp, staffNo) {
   if (!rankScopeDesc.length) {
     var empStore = emp.filter_group || emp.store_type || '';
     var empRole = emp.role === '客运专员' ? '客运专员' : (emp.staff_category || '');
-    if (empStore) rankScopeDesc.push(empStore);
-    if (empRole) rankScopeDesc.push(empRole);
-    if (!rankScopeDesc.length) rankScopeDesc.push('全部');
+    // 营业员同时显示门店类型+人员类型（如“中心厅 营业员”）；客运/装维只显示角色
+    if (empRole === '营业员' && empStore) {
+      rankScopeDesc.push(empStore + ' ' + empRole);
+    } else if (empRole) {
+      rankScopeDesc.push(empRole);
+    } else if (empStore) {
+      rankScopeDesc.push(empStore);
+    } else {
+      rankScopeDesc.push('全部');
+    }
   }
   var rankLabel = rankScopeDesc.join(' ');
 
