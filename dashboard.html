@@ -216,7 +216,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: va
     <p>从上方下拉列表或搜索框选择一位人员查看详细分析</p>
   </div>
 </div>
-<script src="data.js?v=20260914e"></script>
+<script src="data.js?v=20260914f"></script>
 <script>
 const ALL_DATES = Object.keys(ALL_DATE_DATA).sort().reverse();
 
@@ -1445,8 +1445,8 @@ function renderDashboard(emp, staffNo) {
     frozenBanner +
     '<div class="summary-cards">' +
       '<div class="summary-item"><div class="val">' + emp.staff_nm + '</div><div class="lbl">' + emp.store_name + '</div></div>' +
-      '<div class="summary-item"><div class="val">' + empRoleLabel + '</div><div class="lbl">门店类型: ' + empStoreType + '</div></div>' +
-      '<div class="summary-item"><div class="val">' + rankLabel + '</div><div class="lbl">排名范围 | 同组' + sameType + '人</div></div>' +
+      '<div class="summary-item"><div class="val">' + empStoreType + '</div><div class="lbl">门店类型 | ' + empRoleLabel + '</div></div>' +
+      '<div class="summary-item"><div class="val">同组' + sameType + '人</div><div class="lbl">排名范围 | ' + rankLabel + '</div></div>' +
       '<div class="summary-item"><div class="val">' + fmtNum(avgScore) + '</div><div class="lbl">综合得分 | ' + strongCount + '强/' + weakCount + '弱</div></div>' +
     '</div>' +
     '<div class="card"><h3>业务能力雷达图</h3><div id="radarChart" style="height:360px;"></div></div>' +
